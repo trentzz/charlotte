@@ -1,0 +1,13 @@
+# compiled binary
+charlotte
+
+# runtime data (database and uploads)
+data/
+
+# temp directory
+tmp/
+
+# editor and OS files
+.DS_Store
+*.swp
+*.swo

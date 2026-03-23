@@ -1,0 +1,55 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    {{block "head" .}}{{end}}
+</head>
+<body>
+    <nav class="site-nav">
+        <div class="site-nav__inner">
+            <a class="site-nav__logo" href="/">
+                {{if .Settings}}{{.Settings.SiteName}}{{else}}Charlotte{{end}}
+            </a>
+            <ul class="site-nav__links">
+                {{if .User}}
+                    {{if .User.IsAdmin}}
+                    <li><a href="/admin/">Admin</a></li>
+                    {{end}}
+                    <li><a href="/u/{{.User.Username}}/">My Page</a></li>
+                    <li><a href="/dashboard/">Dashboard</a></li>
+                    <li>
+                        <form method="POST" action="/logout" style="margin:0">
+                            <input type="hidden" name="_csrf" value="{{.CSRF}}">
+                            <button type="submit" class="btn btn-ghost btn-sm">Log out</button>
+                        </form>
+                    </li>
+                {{else}}
+                    <li><a href="/login">Log in</a></li>
+                    <li><a href="/register" class="btn btn-primary btn-sm">Sign up</a></li>
+                {{end}}
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        {{block "content" .}}{{end}}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            {{if .Settings}}{{.Settings.SiteName}}{{else}}Charlotte{{end}} &mdash;
+            built with Charlotte
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+    {{block "scripts" .}}{{end}}
+</body>
+</html>
+{{end}}

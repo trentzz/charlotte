@@ -1,0 +1,43 @@
+{{define "content"}}
+<div class="container">
+    <div class="profile-header">
+        <div class="profile-header__avatar">
+            {{if .Profile.AvatarPath}}
+                <img src="/uploads/{{.Profile.ID}}/{{.Profile.AvatarPath}}" alt="{{.Profile.DisplayOrUsername}}">
+            {{else}}{{firstChar .Profile.Username}}{{end}}
+        </div>
+        <div>
+            <h1 class="profile-header__name">{{.Profile.DisplayOrUsername}}'s Recipes</h1>
+            <span class="profile-header__username">@{{.Profile.Username}}</span>
+        </div>
+    </div>
+
+    <nav class="feature-nav">
+        <a href="/u/{{.Profile.Username}}/">Home</a>
+        {{if .Profile.FeatureBlog}}<a href="/u/{{.Profile.Username}}/blog/">Blog</a>{{end}}
+        {{if .Profile.FeatureAbout}}<a href="/u/{{.Profile.Username}}/about">About</a>{{end}}
+        {{if .Profile.FeatureGallery}}<a href="/u/{{.Profile.Username}}/gallery/">Gallery</a>{{end}}
+        <a href="/u/{{.Profile.Username}}/recipes/" class="active">Recipes</a>
+    </nav>
+
+    {{if .Recipes}}
+    <div class="recipe-list">
+        {{range .Recipes}}
+        <article class="recipe-item">
+            <h2 class="recipe-item__title">
+                <a href="/u/{{$.Profile.Username}}/recipes/{{.Slug}}">{{.Title}}</a>
+                {{if and $.IsOwner (not .Published)}}<span class="draft-indicator">Private</span>{{end}}
+            </h2>
+            {{if .Description}}<p class="text-muted text-sm">{{.Description}}</p>{{end}}
+            <div class="text-xs text-muted mt-2">
+                Updated {{formatDate .UpdatedAt}}
+                {{if .Attempts}} &middot; {{len .Attempts}} attempt{{if ne (len .Attempts) 1}}s{{end}}{{end}}
+            </div>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="text-muted">No recipes yet.</p>
+    {{end}}
+</div>
+{{end}}

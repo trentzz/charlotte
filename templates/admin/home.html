@@ -1,0 +1,58 @@
+{{define "content"}}
+<div class="container">
+    <div class="admin-header">
+        Admin &rsaquo; Overview
+    </div>
+
+    {{if .Flash}}<div class="alert alert-neutral">{{.Flash}}</div>{{end}}
+
+    <div class="dash-stats mb-8">
+        <div class="dash-stat">
+            <div class="dash-stat__label">Total users</div>
+            <div class="dash-stat__value">{{.TotalUsers}}</div>
+        </div>
+    </div>
+
+    <div class="section-header">
+        <h2>Quick links</h2>
+    </div>
+    <div style="display:flex; gap:var(--s-3); flex-wrap:wrap; margin-bottom:var(--s-8);">
+        <a href="/admin/users" class="btn btn-secondary">Users</a>
+        <a href="/admin/content" class="btn btn-secondary">Content</a>
+        <a href="/admin/settings" class="btn btn-secondary">Settings</a>
+    </div>
+
+    <div class="section-header">
+        <h2>Recent users</h2>
+        <a href="/admin/users" class="btn btn-ghost btn-sm">All users →</a>
+    </div>
+    <div class="card">
+        <table class="data-table">
+            <thead>
+                <tr><th>Username</th><th>Status</th><th>Role</th><th>Joined</th><th>Disk usage</th></tr>
+            </thead>
+            <tbody>
+            {{range .Users}}
+            <tr>
+                <td>
+                    <a href="/u/{{.Username}}/">{{.Username}}</a>
+                    {{if .DisplayName}}<div class="text-xs text-muted">{{.DisplayName}}</div>{{end}}
+                </td>
+                <td>
+                    {{if eq .Status "active"}}<span class="badge badge-active">Active</span>
+                    {{else if eq .Status "pending"}}<span class="badge badge-pending">Pending</span>
+                    {{else}}<span class="badge badge-suspended">Suspended</span>{{end}}
+                </td>
+                <td>
+                    {{if .IsAdmin}}<span class="badge badge-admin">Admin</span>
+                    {{else}}<span class="text-muted text-sm">User</span>{{end}}
+                </td>
+                <td class="text-sm text-muted">{{formatDate .CreatedAt}}</td>
+                <td class="text-sm text-muted">{{bytesToMB (index $.DiskUsage .ID)}}</td>
+            </tr>
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{end}}

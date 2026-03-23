@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: charlotte
+  namespace: charlotte
+  labels:
+    app: charlotte
+spec:
+  # SQLite requires a single writer. Do not increase replicas without
+  # switching to a networked database first.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: charlotte
+  template:
+    metadata:
+      labels:
+        app: charlotte
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: charlotte
+          image: ghcr.io/trentzz/charlotte:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DATA_DIR
+              value: "/data"
+            - name: BASE_DIR
+              value: "/"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: charlotte-data

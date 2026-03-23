@@ -1,0 +1,102 @@
+{{define "content"}}
+{{/* ── Hero: full-width featured photo ─────────────────────────────────────── */}}
+{{if .Recent}}
+<div class="gallery-hero" style="--hero-src: url('/uploads/{{(index .Recent 0).UserID}}/{{(index .Recent 0).Filename}}')">
+    <div class="gallery-hero__overlay">
+        <div class="gallery-hero__content container">
+            <div class="profile-avatar-sm">
+                {{if .Profile.AvatarPath}}
+                    <img src="/uploads/{{.Profile.ID}}/{{.Profile.AvatarPath}}" alt="{{.Profile.DisplayOrUsername}}">
+                {{else}}{{firstChar .Profile.Username}}{{end}}
+            </div>
+            <h1 class="gallery-hero__name">{{.Profile.DisplayOrUsername}}</h1>
+            <p class="gallery-hero__sub">@{{.Profile.Username}}</p>
+            <nav class="feature-nav feature-nav--dark">
+                <a href="/u/{{.Profile.Username}}/">Home</a>
+                {{if .Profile.FeatureBlog}}<a href="/u/{{.Profile.Username}}/blog/">Blog</a>{{end}}
+                {{if .Profile.FeatureAbout}}<a href="/u/{{.Profile.Username}}/about">About</a>{{end}}
+                <a href="/u/{{.Profile.Username}}/gallery/" class="active">Gallery</a>
+                {{if .Profile.FeatureRecipes}}<a href="/u/{{.Profile.Username}}/recipes/">Recipes</a>{{end}}
+            </nav>
+        </div>
+    </div>
+</div>
+{{else}}
+<div class="container">
+    <div class="profile-header">
+        <div class="profile-header__avatar">
+            {{if .Profile.AvatarPath}}
+                <img src="/uploads/{{.Profile.ID}}/{{.Profile.AvatarPath}}" alt="{{.Profile.DisplayOrUsername}}">
+            {{else}}{{firstChar .Profile.Username}}{{end}}
+        </div>
+        <div>
+            <h1 class="profile-header__name">{{.Profile.DisplayOrUsername}}'s Gallery</h1>
+            <span class="profile-header__username">@{{.Profile.Username}}</span>
+        </div>
+    </div>
+    <nav class="feature-nav">
+        <a href="/u/{{.Profile.Username}}/">Home</a>
+        {{if .Profile.FeatureBlog}}<a href="/u/{{.Profile.Username}}/blog/">Blog</a>{{end}}
+        {{if .Profile.FeatureAbout}}<a href="/u/{{.Profile.Username}}/about">About</a>{{end}}
+        <a href="/u/{{.Profile.Username}}/gallery/" class="active">Gallery</a>
+        {{if .Profile.FeatureRecipes}}<a href="/u/{{.Profile.Username}}/recipes/">Recipes</a>{{end}}
+    </nav>
+</div>
+{{end}}
+
+<div class="container" style="margin-top: var(--s-12);">
+    {{if .Albums}}
+    <div class="section-header mb-6">
+        <h2>Albums</h2>
+    </div>
+    <div class="album-grid mb-10">
+        {{range .Albums}}
+        <a href="/u/{{$.Profile.Username}}/gallery/{{.Slug}}" class="album-card">
+            <div class="album-card__cover">
+                {{if .CoverPhoto}}
+                    <img src="/uploads/{{$.Profile.ID}}/{{.CoverPhoto.Filename}}" alt="{{.Title}}" loading="lazy">
+                {{end}}
+            </div>
+            <div class="album-card__info">
+                <div class="album-card__title">{{.Title}}</div>
+                <div class="album-card__count">{{.PhotoCount}} photo{{if ne .PhotoCount 1}}s{{end}}</div>
+                {{if .Description}}<div class="album-card__desc">{{.Description}}</div>{{end}}
+            </div>
+        </a>
+        {{end}}
+    </div>
+    {{end}}
+
+    {{if .Recent}}
+    <div class="section-header mb-6">
+        <h2>Recent photos</h2>
+    </div>
+    <div class="gallery-grid" id="gallery-grid">
+        {{range .Recent}}
+        <button class="gallery-item gallery-item--btn"
+                data-src="/uploads/{{.UserID}}/{{.Filename}}"
+                data-caption="{{.Caption}}"
+                aria-label="View photo{{if .Caption}}: {{.Caption}}{{end}}">
+            <img src="/uploads/{{.UserID}}/{{.Filename}}" alt="{{.Caption}}" loading="lazy">
+            {{if .Caption}}<div class="gallery-item__caption">{{.Caption}}</div>{{end}}
+        </button>
+        {{end}}
+    </div>
+    {{end}}
+
+    {{if and (not .Albums) (not .Recent)}}
+    <p class="text-muted">No photos yet.</p>
+    {{end}}
+</div>
+
+{{/* ── Lightbox ──────────────────────────────────────────────────────────────── */}}
+<div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-hidden="true">
+    <button class="lightbox__close" id="lb-close" aria-label="Close">&times;</button>
+    <button class="lightbox__nav lightbox__nav--prev" id="lb-prev" aria-label="Previous">&#8249;</button>
+    <button class="lightbox__nav lightbox__nav--next" id="lb-next" aria-label="Next">&#8250;</button>
+    <div class="lightbox__inner">
+        <img id="lb-img" src="" alt="">
+        <div id="lb-caption" class="lightbox__caption"></div>
+    </div>
+</div>
+{{end}}

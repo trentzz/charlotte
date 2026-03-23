@@ -1,0 +1,175 @@
+{{define "head"}}
+<link rel="stylesheet" href="/static/css/quill.snow.css">
+{{end}}
+
+{{define "content"}}
+<div class="container">
+    <div style="max-width: var(--content-prose); margin: 0 auto;">
+        {{if .EditMode}}
+        {{/* ── Inline edit form ─────────────────────────────────────────── */}}
+        <div class="section-header">
+            <h1 style="font-size:var(--text-2xl)">Edit post</h1>
+            <a href="/u/{{.Profile.Username}}/blog/{{.Post.Slug}}" class="btn btn-ghost btn-sm">← Cancel</a>
+        </div>
+        <div class="card">
+            <form method="POST" action="/u/{{.Profile.Username}}/blog/{{.Post.Slug}}" id="inline-blog-form">
+                <input type="hidden" name="_csrf" value="{{.CSRF}}">
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input class="form-control" type="text" name="title" required value="{{.Post.Title}}">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Slug</label>
+                        <input class="form-control" type="text" name="slug" value="{{.Post.Slug}}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tags</label>
+                        <input class="form-control" type="text" name="tags" value="{{joinStrings .Post.Tags ", "}}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Body</label>
+                    <div id="editor-initial-content" style="display:none">{{.BodyForEditor}}</div>
+                    <input type="hidden" name="body" id="body-input">
+                    <div id="quill-editor"></div>
+                    {{if .Photos}}
+                    <button type="button" class="btn btn-ghost btn-sm" style="margin-top:var(--s-2)" onclick="openGalleryModal()">Insert from gallery</button>
+                    {{end}}
+                </div>
+                <div class="form-actions">
+                    <button type="submit" name="published" value="1" class="btn btn-primary">Save &amp; publish</button>
+                    <button type="submit" name="published" value="0" class="btn btn-secondary">Save as draft</button>
+                </div>
+            </form>
+        </div>
+
+        {{else}}
+        {{/* ── Read view ─────────────────────────────────────────────────── */}}
+        <div class="post-header">
+            <nav style="margin-bottom: var(--s-4); font-size: var(--text-sm); color: var(--colour-text-muted);">
+                <a href="/u/{{.Profile.Username}}/">{{.Profile.DisplayOrUsername}}</a> &rsaquo;
+                <a href="/u/{{.Profile.Username}}/blog/">Blog</a>
+            </nav>
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:var(--s-4);">
+                <h1>{{.Post.Title}}</h1>
+                {{if .IsOwner}}
+                <a href="?edit=1" class="btn btn-ghost btn-sm" style="flex-shrink:0; margin-top:var(--s-2)">Edit</a>
+                {{end}}
+            </div>
+            <div class="post-meta">
+                <span>{{formatDate .Post.CreatedAt}}</span>
+                {{if ne .Post.CreatedAt .Post.UpdatedAt}}
+                <span>Updated {{formatDate .Post.UpdatedAt}}</span>
+                {{end}}
+                {{if not .Post.Published}}<span class="draft-indicator">Draft — not public</span>{{end}}
+                {{range .Post.Tags}}<span class="tag">{{.}}</span>{{end}}
+            </div>
+        </div>
+        <div class="post-body prose-content">{{.BodyHTML}}</div>
+        <hr class="divider">
+        <a href="/u/{{.Profile.Username}}/blog/" class="btn btn-ghost btn-sm">← All posts</a>
+        {{end}}
+    </div>
+</div>
+
+{{if and .EditMode .Photos}}
+<div id="gallery-modal" class="modal-overlay" onclick="if(event.target===this)closeGalleryModal()">
+    <div class="modal" style="max-width:680px">
+        <div class="modal__header">
+            <h3 style="margin:0">Insert from gallery</h3>
+            <button type="button" onclick="closeGalleryModal()" class="btn btn-ghost btn-sm">✕</button>
+        </div>
+        <div class="gallery-picker-grid">
+            {{range .Photos}}
+            <button type="button" class="gallery-picker__item" onclick="insertGalleryPhoto('/uploads/{{$.Profile.ID}}/{{.Filename}}')">
+                <img src="/uploads/{{$.Profile.ID}}/{{.Filename}}" alt="{{.Caption}}" loading="lazy">
+            </button>
+            {{end}}
+        </div>
+    </div>
+</div>
+{{end}}
+{{end}}
+
+{{define "scripts"}}
+{{if .EditMode}}
+<script src="/static/js/quill.min.js"></script>
+<script>
+(function () {
+    var editorEl = document.getElementById('quill-editor');
+    if (!editorEl) return;
+
+    function getCSRF() {
+        var t = document.querySelector('#inline-blog-form input[name="_csrf"]');
+        return t ? t.value : '';
+    }
+
+    var quill = new Quill('#quill-editor', {
+        theme: 'snow',
+        modules: {
+            toolbar: {
+                container: [
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    ['blockquote', 'code-block'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    ['link', 'image'],
+                    ['clean']
+                ],
+                handlers: {
+                    image: function () {
+                        var input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/jpeg,image/png,image/webp,image/gif';
+                        input.click();
+                        input.onchange = function () {
+                            var file = input.files[0];
+                            if (!file) return;
+                            var form = new FormData();
+                            form.append('image', file);
+                            form.append('_csrf', getCSRF());
+                            fetch('/dashboard/blog/image', { method: 'POST', body: form })
+                                .then(function (r) { return r.json(); })
+                                .then(function (d) {
+                                    if (d.error) { alert(d.error); return; }
+                                    var range = quill.getSelection(true);
+                                    quill.insertEmbed(range ? range.index : 0, 'image', d.data.filePath, 'user');
+                                })
+                                .catch(function () { alert('Upload failed. Check the file type and size.'); });
+                        };
+                    }
+                }
+            }
+        }
+    });
+
+    var initEl = document.getElementById('editor-initial-content');
+    if (initEl && initEl.innerHTML.trim()) {
+        quill.clipboard.dangerouslyPasteHTML(initEl.innerHTML);
+    }
+
+    document.getElementById('inline-blog-form').addEventListener('submit', function () {
+        document.getElementById('body-input').value = quill.getSemanticHTML();
+    });
+
+    window._blogQuill = quill;
+}());
+
+function openGalleryModal() {
+    document.getElementById('gallery-modal').classList.add('is-open');
+}
+function closeGalleryModal() {
+    document.getElementById('gallery-modal').classList.remove('is-open');
+}
+function insertGalleryPhoto(url) {
+    var q = window._blogQuill;
+    if (q) {
+        var range = q.getSelection(true);
+        q.insertEmbed(range ? range.index : 0, 'image', url, 'user');
+    }
+    closeGalleryModal();
+}
+</script>
+{{end}}
+{{end}}

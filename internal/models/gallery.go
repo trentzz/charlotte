@@ -1,0 +1,294 @@
+package models
+
+import (
+	"database/sql"
+	"fmt"
+	"time"
+)
+
+// Album is a named collection of photos.
+type Album struct {
+	ID          int64
+	UserID      int64
+	Title       string
+	Slug        string
+	Description string
+	Published   bool
+	CoverPhoto  *Photo
+	PhotoCount  int
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// Photo represents a single uploaded image.
+type Photo struct {
+	ID        int64
+	UserID    int64
+	AlbumID   int64
+	Filename  string
+	Caption   string
+	MIMEType  string
+	SizeBytes int64
+	Width     int
+	Height    int
+	CreatedAt time.Time
+}
+
+func scanPhoto(row interface{ Scan(...any) error }) (*Photo, error) {
+	var p Photo
+	var createdAt int64
+	err := row.Scan(
+		&p.ID, &p.UserID, &p.AlbumID, &p.Filename, &p.Caption,
+		&p.MIMEType, &p.SizeBytes, &p.Width, &p.Height, &createdAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.CreatedAt = time.Unix(createdAt, 0)
+	return &p, nil
+}
+
+const photoSelect = `SELECT id, user_id, album_id, filename, caption,
+	mime_type, size_bytes, width, height, created_at FROM photos`
+
+// CreateAlbum inserts a new album and returns its ID.
+func CreateAlbum(db *sql.DB, a *Album) (int64, error) {
+	res, err := db.Exec(
+		`INSERT INTO gallery_albums (user_id, title, slug, description) VALUES (?, ?, ?, ?)`,
+		a.UserID, a.Title, a.Slug, a.Description,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("create album: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+// GetAlbumBySlug returns an album for a user by slug.
+func GetAlbumBySlug(db *sql.DB, userID int64, slug string) (*Album, error) {
+	return scanAlbum(db.QueryRow(
+		`SELECT id, user_id, title, slug, description, published, cover_photo, created_at, updated_at
+		 FROM gallery_albums WHERE user_id = ? AND slug = ?`, userID, slug,
+	))
+}
+
+// GetAlbumByID returns an album by its primary key.
+func GetAlbumByID(db *sql.DB, id int64) (*Album, error) {
+	return scanAlbum(db.QueryRow(
+		`SELECT id, user_id, title, slug, description, published, cover_photo, created_at, updated_at
+		 FROM gallery_albums WHERE id = ?`, id,
+	))
+}
+
+func scanAlbum(row interface{ Scan(...any) error }) (*Album, error) {
+	var a Album
+	var published int
+	var coverPhotoID sql.NullInt64
+	var createdAt, updatedAt int64
+	err := row.Scan(
+		&a.ID, &a.UserID, &a.Title, &a.Slug, &a.Description,
+		&published, &coverPhotoID, &createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	a.Published = published == 1
+	_ = coverPhotoID // cover photo loaded separately when needed
+	a.CreatedAt = time.Unix(createdAt, 0)
+	a.UpdatedAt = time.Unix(updatedAt, 0)
+	return &a, nil
+}
+
+// SetAlbumPublished sets the published flag for an album.
+func SetAlbumPublished(db *sql.DB, albumID int64, published bool) error {
+	_, err := db.Exec(
+		`UPDATE gallery_albums SET published = ?, updated_at = unixepoch() WHERE id = ?`,
+		boolToInt(published), albumID,
+	)
+	return err
+}
+
+// ListAlbumsByUser returns all albums for a user with photo counts.
+// Pass publishedOnly=true for the public gallery view.
+func ListAlbumsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Album, error) {
+	q := `SELECT ga.id, ga.user_id, ga.title, ga.slug, ga.description,
+		        ga.published, ga.cover_photo, ga.created_at, ga.updated_at,
+		        COUNT(p.id) as photo_count
+		 FROM gallery_albums ga
+		 LEFT JOIN photos p ON p.album_id = ga.id
+		 WHERE ga.user_id = ?`
+	if publishedOnly {
+		q += ` AND ga.published = 1`
+	}
+	q += ` GROUP BY ga.id ORDER BY ga.created_at DESC`
+	rows, err := db.Query(q, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect albums and cover photo IDs before closing rows.
+	// Never call another DB function while rows is open with a limited connection pool.
+	type coverEntry struct {
+		idx     int
+		photoID int64
+	}
+	var albums []*Album
+	var covers []coverEntry
+	for rows.Next() {
+		var a Album
+		var published int
+		var coverPhotoID sql.NullInt64
+		var createdAt, updatedAt int64
+		if err := rows.Scan(
+			&a.ID, &a.UserID, &a.Title, &a.Slug, &a.Description,
+			&published, &coverPhotoID, &createdAt, &updatedAt, &a.PhotoCount,
+		); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		a.Published = published == 1
+		a.CreatedAt = time.Unix(createdAt, 0)
+		a.UpdatedAt = time.Unix(updatedAt, 0)
+		if coverPhotoID.Valid {
+			covers = append(covers, coverEntry{len(albums), coverPhotoID.Int64})
+		}
+		albums = append(albums, &a)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Now safe to make additional DB calls.
+	for _, c := range covers {
+		photo, err := GetPhotoByID(db, c.photoID)
+		if err == nil {
+			albums[c.idx].CoverPhoto = photo
+		}
+	}
+	return albums, nil
+}
+
+// DeleteAlbum removes an album. Photos are cascade-deleted by SQLite.
+func DeleteAlbum(db *sql.DB, id int64) error {
+	_, err := db.Exec(`DELETE FROM gallery_albums WHERE id = ?`, id)
+	return err
+}
+
+// SetAlbumCover sets the cover photo for an album unconditionally.
+func SetAlbumCover(db *sql.DB, albumID, photoID int64) error {
+	_, err := db.Exec(
+		`UPDATE gallery_albums SET cover_photo = ?, updated_at = unixepoch() WHERE id = ?`,
+		photoID, albumID,
+	)
+	return err
+}
+
+// SetAlbumCoverIfNone sets the cover photo only when the album has no cover yet.
+func SetAlbumCoverIfNone(db *sql.DB, albumID, photoID int64) error {
+	_, err := db.Exec(
+		`UPDATE gallery_albums SET cover_photo = ?, updated_at = unixepoch()
+		 WHERE id = ? AND cover_photo IS NULL`,
+		photoID, albumID,
+	)
+	return err
+}
+
+// GetOrCreateGeneralAlbum returns the user's "General" album, creating it if needed.
+func GetOrCreateGeneralAlbum(db *sql.DB, userID int64) (*Album, error) {
+	a, err := GetAlbumBySlug(db, userID, "general")
+	if err == nil {
+		return a, nil
+	}
+	id, err := CreateAlbum(db, &Album{
+		UserID: userID,
+		Title:  "General",
+		Slug:   "general",
+	})
+	if err != nil {
+		// Another request may have created it concurrently; try once more.
+		if a2, err2 := GetAlbumBySlug(db, userID, "general"); err2 == nil {
+			return a2, nil
+		}
+		return nil, err
+	}
+	return GetAlbumByID(db, id)
+}
+
+// CreatePhoto inserts a new photo record.
+func CreatePhoto(db *sql.DB, p *Photo) (int64, error) {
+	res, err := db.Exec(
+		`INSERT INTO photos (user_id, album_id, filename, caption, mime_type, size_bytes, width, height)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.UserID, p.AlbumID, p.Filename, p.Caption,
+		p.MIMEType, p.SizeBytes, p.Width, p.Height,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("create photo: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+// GetPhotoByID returns a photo by its primary key.
+func GetPhotoByID(db *sql.DB, id int64) (*Photo, error) {
+	return scanPhoto(db.QueryRow(photoSelect+` WHERE id = ?`, id))
+}
+
+// ListPhotosByAlbum returns all photos in an album ordered by upload time.
+func ListPhotosByAlbum(db *sql.DB, albumID int64) ([]*Photo, error) {
+	rows, err := db.Query(photoSelect+` WHERE album_id = ? ORDER BY created_at DESC`, albumID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanPhotos(rows)
+}
+
+// ListRecentPhotosByUser returns the N most recent photos for a user.
+func ListRecentPhotosByUser(db *sql.DB, userID int64, limit int) ([]*Photo, error) {
+	rows, err := db.Query(
+		photoSelect+` WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`, userID, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanPhotos(rows)
+}
+
+func scanPhotos(rows *sql.Rows) ([]*Photo, error) {
+	var photos []*Photo
+	for rows.Next() {
+		p, err := scanPhoto(rows)
+		if err != nil {
+			return nil, err
+		}
+		photos = append(photos, p)
+	}
+	return photos, rows.Err()
+}
+
+// DeletePhoto removes a photo record and returns the deleted photo (for file cleanup).
+func DeletePhoto(db *sql.DB, id int64) (*Photo, error) {
+	photo, err := GetPhotoByID(db, id)
+	if err != nil {
+		return nil, err
+	}
+	// If this photo was the cover of its album, clear the cover.
+	_, _ = db.Exec(
+		`UPDATE gallery_albums SET cover_photo = NULL WHERE cover_photo = ?`, id,
+	)
+	if _, err := db.Exec(`DELETE FROM photos WHERE id = ?`, id); err != nil {
+		return nil, fmt.Errorf("delete photo: %w", err)
+	}
+	return photo, nil
+}
+
+// ListAllPhotos returns all photos for admin use.
+func ListAllPhotos(db *sql.DB) ([]*Photo, error) {
+	rows, err := db.Query(photoSelect + ` ORDER BY created_at DESC LIMIT 200`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanPhotos(rows)
+}

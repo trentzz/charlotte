@@ -1,0 +1,291 @@
+{{define "head"}}
+{{if .Editing}}<link rel="stylesheet" href="/static/css/quill.snow.css">{{end}}
+{{end}}
+
+{{define "content"}}
+<div class="container">
+    <div class="dash-layout">
+        <nav class="dash-sidebar">
+            <div class="dash-sidebar__title">Navigation</div>
+            <ul class="dash-nav">
+                <li><a href="/dashboard/">Overview</a></li>
+                <li><a href="/dashboard/profile">Profile</a></li>
+                <li><a href="/dashboard/blog/">Blog</a></li>
+                <li><a href="/dashboard/about">About page</a></li>
+                <li><a href="/dashboard/gallery/">Gallery</a></li>
+                <li><a href="/dashboard/recipes/" class="active">Recipes</a></li>
+            </ul>
+        </nav>
+
+        <div>
+            {{if .Flash}}<div class="alert alert-neutral">{{.Flash}}</div>{{end}}
+
+            {{if .Editing}}
+            {{/* Edit form */}}
+            <div class="section-header">
+                <h1>Edit recipe</h1>
+                <a href="/dashboard/recipes/" class="btn btn-ghost btn-sm">← Back</a>
+            </div>
+            <div class="card mb-6">
+                <form method="POST" action="/dashboard/recipes/{{.Editing.ID}}/edit" id="recipe-form">
+                    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Title</label>
+                            <input class="form-control" type="text" name="title" required value="{{.Editing.Title}}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Slug</label>
+                            <input class="form-control" type="text" name="slug" value="{{.Editing.Slug}}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <span class="form-label-hint">Optional intro shown at the top of the recipe.</span>
+                        <div id="editor-initial-content" style="display:none">{{.EditingDesc}}</div>
+                        <input type="hidden" name="description" id="desc-input">
+                        <div id="quill-editor"></div>
+                        {{if .Photos}}
+                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:var(--s-2)" onclick="openGalleryModal()">Insert from gallery</button>
+                        {{end}}
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Ingredients</label>
+                            <span class="form-label-hint">One per line.</span>
+                            <textarea class="form-control" name="ingredients" rows="8">{{.Editing.Ingredients}}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Steps</label>
+                            <span class="form-label-hint">One step per line.</span>
+                            <textarea class="form-control" name="steps" rows="8">{{.Editing.Steps}}</textarea>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" name="published" value="1" class="btn btn-primary">Save &amp; publish</button>
+                        <button type="submit" name="published" value="0" class="btn btn-secondary">Save as draft</button>
+                    </div>
+                </form>
+            </div>
+
+            {{/* Add a variation on the edit page */}}
+            <div class="card">
+                <div class="card-header"><h3>Add variation</h3></div>
+                <form method="POST" action="/dashboard/recipes/{{.Editing.ID}}/attempt">
+                    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+                    <div class="form-group">
+                        <label class="form-label">Title</label>
+                        <input class="form-control" type="text" name="title" placeholder="e.g. Variation 3 — reduced sugar" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="4" placeholder="What did you try? How did it turn out?"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add variation</button>
+                </form>
+
+                {{if .Editing.Attempts}}
+                <hr class="divider">
+                <h4 style="margin-bottom:var(--s-3)">Past variations</h4>
+                {{range .Editing.Attempts}}
+                <div class="attempt-entry" style="display:flex;justify-content:space-between;align-items:start;">
+                    <div>
+                        <div class="attempt-entry__title">{{.Title}}</div>
+                        <div class="attempt-entry__date">{{formatDateTime .CreatedAt}}</div>
+                        {{if .Notes}}<div class="attempt-entry__notes">{{.Notes}}</div>{{end}}
+                    </div>
+                    <form method="POST" action="/dashboard/recipes/{{$.Editing.ID}}/attempt/{{.ID}}/delete"
+                          data-confirm="Delete this variation?">
+                        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                        <button type="submit" class="btn btn-ghost btn-sm">✕</button>
+                    </form>
+                </div>
+                {{end}}
+                {{end}}
+            </div>
+
+            {{else}}
+            {{/* New recipe form */}}
+            <div class="section-header"><h1>Recipes</h1></div>
+            <div class="card mb-6">
+                <div class="card-header"><h3>New recipe</h3></div>
+                <form method="POST" action="/dashboard/recipes/new">
+                    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Title</label>
+                            <input class="form-control" type="text" name="title" required placeholder="Recipe name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input class="form-control" type="text" name="description" placeholder="Short description">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Ingredients</label>
+                            <span class="form-label-hint">One per line.</span>
+                            <textarea class="form-control" name="ingredients" rows="8" placeholder="2 cups flour&#10;1 tsp salt..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Steps</label>
+                            <span class="form-label-hint">One step per line.</span>
+                            <textarea class="form-control" name="steps" rows="8" placeholder="Mix dry ingredients&#10;Add eggs..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" name="published" value="1" class="btn btn-primary">Create &amp; publish</button>
+                        <button type="submit" name="published" value="0" class="btn btn-secondary">Save as draft</button>
+                    </div>
+                </form>
+            </div>
+
+            {{/* Recipe list */}}
+            {{if .Recipes}}
+            <div class="card">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Recipe</th><th>Status</th><th>Variations</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    {{range .Recipes}}
+                    <tr>
+                        <td>
+                            <a href="/u/{{$.User.Username}}/recipes/{{.Slug}}" target="_blank">{{.Title}}</a>
+                        </td>
+                        <td>
+                            <form method="POST" action="/dashboard/recipes/{{.ID}}/toggle" style="display:inline">
+                                <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                                {{if .Published}}
+                                <button type="submit" class="vis-toggle public" title="Click to make private">Public</button>
+                                {{else}}
+                                <button type="submit" class="vis-toggle private" title="Click to make public">Private</button>
+                                {{end}}
+                            </form>
+                        </td>
+                        <td class="text-sm text-muted">{{len .Attempts}} variation{{if ne (len .Attempts) 1}}s{{end}}</td>
+                        <td>
+                            <div class="data-table__actions">
+                                <a href="/dashboard/recipes/{{.ID}}/edit" class="btn btn-ghost btn-sm">Edit</a>
+                                <form method="POST" action="/dashboard/recipes/{{.ID}}/delete"
+                                      data-confirm="Delete this recipe and all its variations?">
+                                    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {{end}}
+                    </tbody>
+                </table>
+            </div>
+            {{else}}
+            <p class="text-muted">No recipes yet. Create your first one above.</p>
+            {{end}}
+            {{end}}
+        </div>
+    </div>
+</div>
+
+{{if and .Editing .Photos}}
+<div id="gallery-modal" class="modal-overlay" onclick="if(event.target===this)closeGalleryModal()">
+    <div class="modal" style="max-width:680px">
+        <div class="modal__header">
+            <h3 style="margin:0">Insert from gallery</h3>
+            <button type="button" onclick="closeGalleryModal()" class="btn btn-ghost btn-sm">✕</button>
+        </div>
+        <div class="gallery-picker-grid">
+            {{range .Photos}}
+            <button type="button" class="gallery-picker__item" onclick="insertGalleryPhoto('/uploads/{{$.User.ID}}/{{.Filename}}')">
+                <img src="/uploads/{{$.User.ID}}/{{.Filename}}" alt="{{.Caption}}" loading="lazy">
+            </button>
+            {{end}}
+        </div>
+    </div>
+</div>
+{{end}}
+{{end}}
+
+{{define "scripts"}}
+{{if .Editing}}
+<script src="/static/js/quill.min.js"></script>
+<script>
+(function () {
+    var editorEl = document.getElementById('quill-editor');
+    if (!editorEl) return;
+
+    function getCSRF() {
+        var t = document.querySelector('#recipe-form input[name="_csrf"]');
+        return t ? t.value : '';
+    }
+
+    var quill = new Quill('#quill-editor', {
+        theme: 'snow',
+        modules: {
+            toolbar: {
+                container: [
+                    [{ 'header': [2, 3, false] }],
+                    ['bold', 'italic', 'underline'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    ['link', 'image'],
+                    ['clean']
+                ],
+                handlers: {
+                    image: function () {
+                        var input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/jpeg,image/png,image/webp,image/gif';
+                        input.click();
+                        input.onchange = function () {
+                            var file = input.files[0];
+                            if (!file) return;
+                            var form = new FormData();
+                            form.append('image', file);
+                            form.append('_csrf', getCSRF());
+                            fetch('/dashboard/blog/image', { method: 'POST', body: form })
+                                .then(function (r) { return r.json(); })
+                                .then(function (d) {
+                                    if (d.error) { alert(d.error); return; }
+                                    var range = quill.getSelection(true);
+                                    quill.insertEmbed(range ? range.index : 0, 'image', d.data.filePath, 'user');
+                                })
+                                .catch(function () { alert('Upload failed. Check the file type and size.'); });
+                        };
+                    }
+                }
+            }
+        }
+    });
+
+    // Shorter min-height for recipe description.
+    quill.root.style.minHeight = '160px';
+
+    var initEl = document.getElementById('editor-initial-content');
+    if (initEl && initEl.innerHTML.trim()) {
+        quill.clipboard.dangerouslyPasteHTML(initEl.innerHTML);
+    }
+
+    document.getElementById('recipe-form').addEventListener('submit', function () {
+        document.getElementById('desc-input').value = quill.getSemanticHTML();
+    });
+
+    window._recipeQuill = quill;
+}());
+
+function openGalleryModal() {
+    document.getElementById('gallery-modal').classList.add('is-open');
+}
+function closeGalleryModal() {
+    document.getElementById('gallery-modal').classList.remove('is-open');
+}
+function insertGalleryPhoto(url) {
+    var q = window._recipeQuill;
+    if (q) {
+        var range = q.getSelection(true);
+        q.insertEmbed(range ? range.index : 0, 'image', url, 'user');
+    }
+    closeGalleryModal();
+}
+</script>
+{{end}}
+{{end}}
