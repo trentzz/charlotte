@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { Component, useCallback, useEffect, useRef, useState } from 'react'
 import GridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
@@ -338,7 +338,7 @@ function TextInputDialog({ open, widgetType, onConfirm, onClose }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function Homepage() {
+function Homepage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [saveStatus, setSaveStatus] = useState('idle') // idle | saving | saved | error
@@ -614,3 +614,33 @@ export default function Homepage() {
     </Box>
   )
 }
+
+class HomepageErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <Box sx={{ mt: 4, p: 3 }}>
+          <Alert severity="error">
+            Failed to render the homepage builder: {this.state.error?.message || 'Unknown error'}
+          </Alert>
+        </Box>
+      )
+    }
+    return this.props.children
+  }
+}
+
+const HomepageWithBoundary = () => (
+  <HomepageErrorBoundary>
+    <Homepage />
+  </HomepageErrorBoundary>
+)
+
+export { HomepageWithBoundary as default }

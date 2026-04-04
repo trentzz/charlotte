@@ -35,7 +35,7 @@ export default function About() {
   return (
     <Container maxWidth="md" sx={{ py: 6 }}>
       <Typography variant="h3" fontWeight={700} gutterBottom>
-        About {user?.display_name || username}
+        About
       </Typography>
       <Divider sx={{ mb: 4 }} />
 

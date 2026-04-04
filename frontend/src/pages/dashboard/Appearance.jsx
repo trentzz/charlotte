@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import {
-  Box, Typography, Slider, Button, Alert, CircularProgress,
+  Box, Typography, Slider, Alert, CircularProgress,
   Divider, Stack, Tabs, Tab, TextField, useTheme,
 } from '@mui/material'
 import { HslColorPicker } from 'react-colorful'
@@ -241,7 +241,6 @@ function FontCardPicker({ label, fonts, value, onChange }) {
 export default function Appearance() {
   const [theme, setTheme] = useState(DEFAULT_THEME)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   // 0 = light, 1 = dark
   const [colourTab, setColourTab] = useState(0)
@@ -273,15 +272,12 @@ export default function Appearance() {
   }, [theme])
 
   async function doSave(t) {
-    setSaving(true)
     setError(null)
     try {
       await client.put('/dashboard/appearance', t)
       setLiveTheme(t)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save.')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -303,19 +299,6 @@ export default function Appearance() {
 
   function handleDarkBgChange({ h, s, l }) {
     setTheme((t) => ({ ...t, dark_bg_h: h, dark_bg_s: s, dark_bg_l: l }))
-  }
-
-  async function handleSave() {
-    setError(null)
-    setSaving(true)
-    try {
-      await client.put('/dashboard/appearance', theme)
-      setLiveTheme(theme)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save appearance.')
-    } finally {
-      setSaving(false)
-    }
   }
 
   if (loading) return <CircularProgress />
@@ -435,9 +418,6 @@ export default function Appearance() {
         />
       </Stack>
 
-      <Button variant="contained" onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving…' : 'Save appearance'}
-      </Button>
     </Box>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar, Toolbar, Typography, Box, Button, MenuItem,
@@ -170,7 +170,6 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
                     label="Blog"
                     items={blogItems}
                     allHref={`/u/${username}/blog`}
-                    allLabel="See all posts →"
                     navFontSize={navFontSize}
                     fontDisplay={fontDisplay}
                   />
@@ -185,7 +184,6 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
                     label="Projects"
                     items={projectItems}
                     allHref={`/u/${username}/projects`}
-                    allLabel="See all →"
                     navFontSize={navFontSize}
                     fontDisplay={fontDisplay}
                   />
@@ -195,7 +193,6 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
                     label="Gallery"
                     items={galleryItems}
                     allHref={`/u/${username}/gallery`}
-                    allLabel="See all →"
                     navFontSize={navFontSize}
                     fontDisplay={fontDisplay}
                   />
@@ -205,7 +202,6 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
                     label="Recipes"
                     items={recipeItems}
                     allHref={`/u/${username}/recipes`}
-                    allLabel="See all →"
                     navFontSize={navFontSize}
                     fontDisplay={fontDisplay}
                   />
@@ -407,13 +403,21 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
   )
 }
 
-// Dropdown nav button (same as ProfileLayout).
-function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay }) {
+// Dropdown nav button — navigates to the section on click, opens on hover.
+function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
+  const closeTimer = useRef(null)
   const [anchorEl, setAnchorEl] = useState(null)
   const [filterText, setFilterText] = useState('')
   const open = Boolean(anchorEl)
 
-  const handleClick = (e) => setAnchorEl(e.currentTarget)
+  const handleMouseEnter = (e) => {
+    clearTimeout(closeTimer.current)
+    setAnchorEl(e.currentTarget)
+  }
+  const handleMouseLeave = () => {
+    closeTimer.current = setTimeout(() => setAnchorEl(null), 120)
+  }
+  const handleMenuMouseEnter = () => clearTimeout(closeTimer.current)
   const handleClose = () => {
     setAnchorEl(null)
     setFilterText('')
@@ -434,8 +438,11 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
   return (
     <>
       <Button
-        onClick={handleClick}
+        component={RouterLink}
+        to={allHref}
         endIcon={<KeyboardArrowDownIcon />}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         sx={{ color: 'inherit', ...labelStyle }}
       >
         {label}
@@ -447,6 +454,11 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         PaperProps={{ sx: { minWidth: anchorEl?.offsetWidth ?? 120 } }}
+        MenuListProps={{
+          onMouseEnter: handleMenuMouseEnter,
+          onMouseLeave: handleMouseLeave,
+        }}
+        disableAutoFocusItem
       >
         {items.length > 3 && (
           <Box sx={{ px: 1.5, pt: 1, pb: 0.5 }}>
@@ -473,19 +485,6 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
             {item.label}
           </MenuItem>
         ))}
-        {allHref && (
-          <>
-            {visibleItems.length > 0 && <Divider />}
-            <MenuItem
-              component={RouterLink}
-              to={allHref}
-              onClick={handleClose}
-              sx={{ fontSize: navFontSize, fontStyle: 'italic' }}
-            >
-              {allLabel || 'See all →'}
-            </MenuItem>
-          </>
-        )}
       </Menu>
     </>
   )
