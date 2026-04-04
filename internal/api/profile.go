@@ -36,8 +36,11 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 	if profile.FeatureGallery {
 		photos, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 6)
 		out["recent_photos"] = toPhotoList(photos)
+		albums, _ := models.ListAlbumsByUser(a.DB, profile.ID, true)
+		out["albums"] = toAlbumList(albums)
 	} else {
 		out["recent_photos"] = []any{}
+		out["albums"] = []any{}
 	}
 
 	if profile.FeatureRecipes {
@@ -59,6 +62,9 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 	} else {
 		out["recent_projects"] = []any{}
 	}
+
+	layout, _ := models.GetHomepageLayout(a.DB, profile.ID)
+	out["homepage"] = layout
 
 	a.respondJSON(w, http.StatusOK, out)
 }
@@ -135,17 +141,58 @@ func toPhotoList(photos []*models.Photo) []photoJSON {
 	return out
 }
 
+type ingredientGroupJSON struct {
+	Title string   `json:"title"`
+	Items []string `json:"items"`
+}
+
+type methodGroupJSON struct {
+	Title string   `json:"title"`
+	Steps []string `json:"steps"`
+}
+
+type variationJSON struct {
+	Title          string `json:"title"`
+	Notes          string `json:"notes"`
+	FromIngredient int    `json:"from_ingredient,omitempty"`
+	FromStep       int    `json:"from_step,omitempty"`
+}
+
+type recipePhotoJSON struct {
+	ID        int64  `json:"id"`
+	RecipeID  int64  `json:"recipe_id"`
+	URL       string `json:"url"`
+	Caption   string `json:"caption"`
+	SortOrder int    `json:"sort_order"`
+	CreatedAt string `json:"created_at"`
+}
+
+func toRecipePhotoJSON(p *models.RecipePhoto) recipePhotoJSON {
+	return recipePhotoJSON{
+		ID:        p.ID,
+		RecipeID:  p.RecipeID,
+		URL:       photoURL(p.UserID, p.Path),
+		Caption:   p.Caption,
+		SortOrder: p.SortOrder,
+		CreatedAt: p.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+	}
+}
+
 type recipeJSON struct {
-	ID          int64        `json:"id"`
-	Title       string       `json:"title"`
-	Slug        string       `json:"slug"`
-	Description string       `json:"description"`
-	Ingredients string       `json:"ingredients"`
-	Steps       string       `json:"steps"`
-	Published   bool         `json:"published"`
-	Attempts    []attemptJSON `json:"attempts"`
-	CreatedAt   string       `json:"created_at"`
-	UpdatedAt   string       `json:"updated_at"`
+	ID                int64                `json:"id"`
+	Title             string               `json:"title"`
+	Slug              string               `json:"slug"`
+	Description       string               `json:"description"`
+	Ingredients       string               `json:"ingredients"`
+	Steps             string               `json:"steps"`
+	IngredientsGroups []ingredientGroupJSON `json:"ingredients_groups"`
+	MethodGroups      []methodGroupJSON     `json:"method_groups"`
+	Variations        []variationJSON       `json:"variations"`
+	Published         bool                 `json:"published"`
+	Attempts          []attemptJSON        `json:"attempts"`
+	Photos            []recipePhotoJSON    `json:"photos"`
+	CreatedAt         string               `json:"created_at"`
+	UpdatedAt         string               `json:"updated_at"`
 }
 
 type attemptJSON struct {
@@ -167,17 +214,55 @@ func toRecipeJSON(r *models.Recipe) recipeJSON {
 			CreatedAt: a.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		})
 	}
+
+	ingGroups := make([]ingredientGroupJSON, 0, len(r.IngredientsGroups))
+	for _, g := range r.IngredientsGroups {
+		items := g.Items
+		if items == nil {
+			items = []string{}
+		}
+		ingGroups = append(ingGroups, ingredientGroupJSON{Title: g.Title, Items: items})
+	}
+
+	methGroups := make([]methodGroupJSON, 0, len(r.MethodGroups))
+	for _, g := range r.MethodGroups {
+		steps := g.Steps
+		if steps == nil {
+			steps = []string{}
+		}
+		methGroups = append(methGroups, methodGroupJSON{Title: g.Title, Steps: steps})
+	}
+
+	variations := make([]variationJSON, 0, len(r.Variations))
+	for _, v := range r.Variations {
+		variations = append(variations, variationJSON{
+			Title:          v.Title,
+			Notes:          v.Notes,
+			FromIngredient: v.FromIngredient,
+			FromStep:       v.FromStep,
+		})
+	}
+
+	photos := make([]recipePhotoJSON, 0, len(r.Photos))
+	for _, p := range r.Photos {
+		photos = append(photos, toRecipePhotoJSON(p))
+	}
+
 	return recipeJSON{
-		ID:          r.ID,
-		Title:       r.Title,
-		Slug:        r.Slug,
-		Description: r.Description,
-		Ingredients: r.Ingredients,
-		Steps:       r.Steps,
-		Published:   r.Published,
-		Attempts:    attempts,
-		CreatedAt:   r.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:   r.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		ID:                r.ID,
+		Title:             r.Title,
+		Slug:              r.Slug,
+		Description:       r.Description,
+		Ingredients:       r.Ingredients,
+		Steps:             r.Steps,
+		IngredientsGroups: ingGroups,
+		MethodGroups:      methGroups,
+		Variations:        variations,
+		Published:         r.Published,
+		Attempts:          attempts,
+		Photos:            photos,
+		CreatedAt:         r.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:         r.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
 }
 

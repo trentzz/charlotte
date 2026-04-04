@@ -5,6 +5,7 @@ import {
 } from '@mui/material'
 import { HslColorPicker } from 'react-colorful'
 import client from '../../api/client.js'
+import { useLiveTheme } from '../../context/LiveThemeContext.jsx'
 
 // Font lists per role.
 const DISPLAY_FONTS = ['Playfair Display', 'DM Serif Display', 'EB Garamond', 'Cormorant Garamond', 'Libre Baskerville']
@@ -242,9 +243,9 @@ export default function Appearance() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
   // 0 = light, 1 = dark
   const [colourTab, setColourTab] = useState(0)
+  const { setLiveTheme } = useLiveTheme()
   const autoSaveTimer = useRef(null)
   // Track whether the initial load is done so we don't auto-save on mount.
   const initialised = useRef(false)
@@ -276,8 +277,7 @@ export default function Appearance() {
     setError(null)
     try {
       await client.put('/dashboard/appearance', t)
-      setSuccess('Saved.')
-      setTimeout(() => setSuccess(null), 2000)
+      setLiveTheme(t)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save.')
     } finally {
@@ -307,11 +307,10 @@ export default function Appearance() {
 
   async function handleSave() {
     setError(null)
-    setSuccess(null)
     setSaving(true)
     try {
       await client.put('/dashboard/appearance', theme)
-      setSuccess('Appearance saved.')
+      setLiveTheme(theme)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save appearance.')
     } finally {
@@ -328,7 +327,6 @@ export default function Appearance() {
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
       {/* Colour pickers — tabbed by mode */}
       <Typography variant="subtitle1" fontWeight={600} gutterBottom>

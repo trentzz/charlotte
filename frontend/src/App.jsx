@@ -38,6 +38,7 @@ import AlbumView from './pages/dashboard/AlbumView.jsx'
 import Recipes from './pages/dashboard/Recipes.jsx'
 import RecipeEdit from './pages/dashboard/RecipeEdit.jsx'
 import DashProjects from './pages/dashboard/Projects.jsx'
+import Homepage from './pages/dashboard/Homepage.jsx'
 
 // Admin pages
 import AdminUsers from './pages/admin/Users.jsx'
@@ -96,6 +97,7 @@ export default function App() {
               <Route path="/dashboard/recipes" element={<Recipes />} />
               <Route path="/dashboard/recipes/:id" element={<RecipeEdit />} />
               <Route path="/dashboard/projects" element={<DashProjects />} />
+              <Route path="/dashboard/homepage" element={<Homepage />} />
 
               {/* Admin routes */}
               <Route path="/admin/users" element={<AdminUsers />} />

@@ -1,14 +1,336 @@
 import React, { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import {
-  Box, Container, Typography, Button, Grid, Card, CardContent,
-  CardActionArea, Avatar, CircularProgress, Alert,
+  Box, Container, Typography, Button, Grid, Avatar,
+  CircularProgress, Alert, AppBar, Toolbar, IconButton,
 } from '@mui/material'
+import { ThemeProvider, CssBaseline } from '@mui/material'
+import LightModeIcon from '@mui/icons-material/LightMode'
+import DarkModeIcon from '@mui/icons-material/DarkMode'
 import client from '../api/client.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { ThemeModeProvider, useThemeMode } from '../context/ThemeModeContext.jsx'
+import buildProfileTheme from '../theme/buildProfileTheme.js'
 
-export default function Landing() {
+// Decorative spider-web SVG component.
+function SpiderWeb({ size = 200, sx }) {
+  const degrees = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
+  const radii = [20, 40, 60, 80, 95]
+
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 200 200"
+      sx={{ width: size, height: size, ...sx }}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="0.8"
+    >
+      {/* Radial lines from centre */}
+      {degrees.map((deg) => {
+        const rad = (deg * Math.PI) / 180
+        return (
+          <line
+            key={deg}
+            x1="100" y1="100"
+            x2={100 + 95 * Math.cos(rad)}
+            y2={100 + 95 * Math.sin(rad)}
+          />
+        )
+      })}
+      {/* Concentric web rings */}
+      {radii.map((r) => (
+        <polygon
+          key={r}
+          points={degrees
+            .map((deg) => {
+              const rad = (deg * Math.PI) / 180
+              return `${100 + r * Math.cos(rad)},${100 + r * Math.sin(rad)}`
+            })
+            .join(' ')}
+        />
+      ))}
+    </Box>
+  )
+}
+
+// Inner page that can access ThemeModeContext.
+function LandingInner({ settings, users, error }) {
   const { user } = useAuth()
+  const { mode, toggleMode } = useThemeMode()
+
+  // Build the admin theme, falling back to defaults if none is set.
+  const adminTheme = settings?.admin_theme ?? null
+  const theme = buildProfileTheme(adminTheme, mode)
+  const fontDisplay = theme.fontDisplay
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          bgcolor: 'background.default',
+          color: 'text.primary',
+        }}
+      >
+        {/* Top bar */}
+        <AppBar
+          position="sticky"
+          elevation={0}
+          sx={{
+            bgcolor: 'background.default',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            color: 'text.primary',
+          }}
+        >
+          <Toolbar sx={{ px: { xs: 2, md: 4 } }}>
+            <Typography
+              component={RouterLink}
+              to="/"
+              variant="h6"
+              sx={{
+                flexGrow: 1,
+                textDecoration: 'none',
+                color: 'inherit',
+                fontFamily: `'${fontDisplay}', Georgia, serif`,
+                fontWeight: 700,
+              }}
+            >
+              Charlotte
+            </Typography>
+
+            <IconButton onClick={toggleMode} color="inherit" size="small" sx={{ mr: 1 }}>
+              {mode === 'dark' ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+            </IconButton>
+
+            {user ? (
+              <Button component={RouterLink} to="/dashboard" color="inherit" size="small">
+                Dashboard
+              </Button>
+            ) : (
+              <>
+                <Button component={RouterLink} to="/login" color="inherit" size="small">
+                  Log in
+                </Button>
+                {settings?.registration_open && (
+                  <Button
+                    component={RouterLink}
+                    to="/register"
+                    variant="outlined"
+                    size="small"
+                    color="primary"
+                    sx={{ ml: 1 }}
+                  >
+                    Register
+                  </Button>
+                )}
+              </>
+            )}
+          </Toolbar>
+        </AppBar>
+
+        {/* Hero section */}
+        <Box
+          sx={{
+            position: 'relative',
+            overflow: 'hidden',
+            py: { xs: 10, md: 16 },
+            textAlign: 'center',
+            flexShrink: 0,
+          }}
+        >
+          {/* Background web — top-left */}
+          <SpiderWeb
+            size={380}
+            sx={{
+              position: 'absolute',
+              top: -60,
+              left: -60,
+              opacity: 0.06,
+              color: 'text.primary',
+              pointerEvents: 'none',
+            }}
+          />
+          {/* Background web — bottom-right */}
+          <SpiderWeb
+            size={160}
+            sx={{
+              position: 'absolute',
+              bottom: -20,
+              right: -20,
+              opacity: 0.06,
+              color: 'text.primary',
+              pointerEvents: 'none',
+            }}
+          />
+
+          <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
+            <Typography
+              variant="h1"
+              sx={{
+                fontFamily: `'${fontDisplay}', Georgia, serif`,
+                fontWeight: 700,
+                fontSize: { xs: '3.5rem', md: '6rem' },
+                lineHeight: 1.05,
+                mb: 2,
+              }}
+            >
+              {settings?.site_name || 'Charlotte'}
+            </Typography>
+
+            <Typography
+              variant="h5"
+              color="text.secondary"
+              sx={{ mb: settings?.site_description ? 1.5 : 4, fontStyle: 'italic' }}
+            >
+              Some website. Radiant.
+            </Typography>
+
+            {settings?.site_description && (
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                sx={{ mb: 4, maxWidth: 560, mx: 'auto' }}
+              >
+                {settings.site_description}
+              </Typography>
+            )}
+
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {user ? (
+                <Button
+                  component={RouterLink}
+                  to="/dashboard"
+                  variant="contained"
+                  size="large"
+                >
+                  Go to dashboard
+                </Button>
+              ) : (
+                <>
+                  {settings?.registration_open && (
+                    <Button
+                      component={RouterLink}
+                      to="/register"
+                      variant="contained"
+                      size="large"
+                    >
+                      Get started
+                    </Button>
+                  )}
+                  <Button
+                    component={RouterLink}
+                    to="/login"
+                    variant="outlined"
+                    size="large"
+                  >
+                    Log in
+                  </Button>
+                </>
+              )}
+            </Box>
+          </Container>
+        </Box>
+
+        {/* User grid */}
+        <Box component="main" sx={{ flexGrow: 1 }}>
+          <Container maxWidth="lg" sx={{ py: 6 }}>
+            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+            {users.length > 0 && (
+              <>
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  display="block"
+                  sx={{ mb: 3, letterSpacing: '0.12em' }}
+                >
+                  Meet the authors
+                </Typography>
+                <Grid container spacing={4}>
+                  {users.map((u) => (
+                    <Grid item xs={12} sm={6} md={4} key={u.username}>
+                      <Box
+                        component={RouterLink}
+                        to={`/u/${u.username}`}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          textDecoration: 'none',
+                          color: 'inherit',
+                          '&:hover .user-name': { color: 'primary.main' },
+                        }}
+                      >
+                        <Avatar
+                          src={u.avatar_url || undefined}
+                          sx={{ width: 52, height: 52, flexShrink: 0 }}
+                        >
+                          {(u.display_name || u.username)[0]?.toUpperCase()}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography
+                            className="user-name"
+                            fontWeight={600}
+                            sx={{
+                              fontFamily: `'${fontDisplay}', Georgia, serif`,
+                              transition: 'color 0.15s',
+                            }}
+                          >
+                            {u.display_name || u.username}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            @{u.username}
+                          </Typography>
+                          {u.bio && (
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{
+                                mt: 0.5,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                maxWidth: 220,
+                              }}
+                            >
+                              {u.bio}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              </>
+            )}
+          </Container>
+        </Box>
+
+        {/* Footer */}
+        <Box
+          component="footer"
+          sx={{
+            py: 3,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            textAlign: 'center',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Charlotte
+          </Typography>
+        </Box>
+      </Box>
+    </ThemeProvider>
+  )
+}
+
+// Outer wrapper: fetches data, wraps in ThemeModeProvider.
+export default function Landing() {
   const [settings, setSettings] = useState(null)
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -23,7 +345,7 @@ export default function Landing() {
         ])
         setSettings(settingsRes.data)
         setUsers(usersRes.data || [])
-      } catch (err) {
+      } catch {
         setError('Failed to load site information.')
       } finally {
         setLoading(false)
@@ -41,109 +363,8 @@ export default function Landing() {
   }
 
   return (
-    <Box>
-      {/* Hero */}
-      <Box
-        sx={{
-          bgcolor: 'primary.main',
-          color: 'primary.contrastText',
-          py: { xs: 8, md: 12 },
-          textAlign: 'center',
-        }}
-      >
-        <Container maxWidth="md">
-          <Typography variant="h2" fontWeight={700} gutterBottom>
-            {settings?.site_name || 'Charlotte'}
-          </Typography>
-          {settings?.description && (
-            <Typography variant="h5" sx={{ mb: 4, opacity: 0.9 }}>
-              {settings.description}
-            </Typography>
-          )}
-          {!user && (
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-              {settings?.registration_open && (
-                <Button
-                  component={RouterLink}
-                  to="/register"
-                  variant="contained"
-                  size="large"
-                  sx={{ bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: 'grey.100' } }}
-                >
-                  Get started
-                </Button>
-              )}
-              <Button
-                component={RouterLink}
-                to="/login"
-                variant="outlined"
-                size="large"
-                sx={{ borderColor: 'white', color: 'white', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
-              >
-                Log in
-              </Button>
-            </Box>
-          )}
-          {user && (
-            <Button
-              component={RouterLink}
-              to="/dashboard"
-              variant="contained"
-              size="large"
-              sx={{ bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: 'grey.100' } }}
-            >
-              Go to dashboard
-            </Button>
-          )}
-        </Container>
-      </Box>
-
-      {/* User directory */}
-      <Container maxWidth="lg" sx={{ py: 6 }}>
-        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-        {users.length > 0 && (
-          <>
-            <Typography variant="h4" fontWeight={700} gutterBottom>
-              Members
-            </Typography>
-            <Grid container spacing={3}>
-              {users.map((u) => (
-                <Grid item xs={12} sm={6} md={4} key={u.username}>
-                  <Card elevation={1}>
-                    <CardActionArea component={RouterLink} to={`/u/${u.username}`}>
-                      <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Avatar
-                          src={u.avatar_path ? (u.avatar_path.startsWith('/') ? u.avatar_path : `/${u.avatar_path}`) : undefined}
-                          sx={{ width: 56, height: 56 }}
-                        >
-                          {(u.display_name || u.username)[0]?.toUpperCase()}
-                        </Avatar>
-                        <Box>
-                          <Typography fontWeight={600}>
-                            {u.display_name || u.username}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            @{u.username}
-                          </Typography>
-                          {u.bio && (
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ mt: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}
-                            >
-                              {u.bio}
-                            </Typography>
-                          )}
-                        </Box>
-                      </CardContent>
-                    </CardActionArea>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          </>
-        )}
-      </Container>
-    </Box>
+    <ThemeModeProvider>
+      <LandingInner settings={settings} users={users} error={error} />
+    </ThemeModeProvider>
   )
 }

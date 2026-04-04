@@ -5,9 +5,11 @@ import {
 } from '@mui/material'
 import client from '../../api/client.js'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useNavData } from '../../context/NavDataContext.jsx'
 
 export default function Profile() {
   const { user, refresh } = useAuth()
+  const navDataCtx = useNavData()
   const [form, setForm] = useState({ display_name: '', bio: '', location: '', website: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -70,6 +72,7 @@ export default function Profile() {
         setAvatarSrc(path.startsWith('/') ? path : `/${path}`)
       }
       await refresh()
+      navDataCtx?.reloadNavData?.()
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to upload avatar.')
     } finally {

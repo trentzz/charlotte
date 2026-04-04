@@ -70,7 +70,7 @@ All colours are configurable per user via HSL sliders in Dashboard → Appearanc
 
 - **Editorial / photography-first** aesthetic inspired by seantucker.photography/street.
 - Album page: centred title in display font, muted photo count, optional italic description, thin divider, then grid.
-- Photo grid: 3 columns, 3 px gap, **no rounded corners** anywhere in the gallery.
+- Photo grid: masonry layout, original aspect ratios, 10 px gap, **no rounded corners** anywhere in the gallery. 3 columns on desktop, 2 on tablet (≤900 px), 1 on mobile (≤600 px).
 - Lightbox on photo click with keyboard navigation (arrow keys, Escape).
 - Gallery home: album grid (no rounded corners) and recent photos grid.
 

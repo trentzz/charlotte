@@ -287,6 +287,13 @@ func DeleteUser(db *sql.DB, id int64) error {
 	return err
 }
 
+// GetFirstAdminUser returns the first active admin user, ordered by ID.
+// Returns sql.ErrNoRows if no admin exists.
+func GetFirstAdminUser(db *sql.DB) (*User, error) {
+	row := db.QueryRow(userSelect + ` WHERE role = 'admin' AND status = 'active' ORDER BY id ASC LIMIT 1`)
+	return scanUser(row)
+}
+
 // CountUsers returns the total number of users in the database.
 func CountUsers(db *sql.DB) (int, error) {
 	var count int

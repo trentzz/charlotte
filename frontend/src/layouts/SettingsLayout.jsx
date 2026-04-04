@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Outlet, Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar, Toolbar, Typography, Box, Button, MenuItem,
   IconButton, Menu, Divider, CircularProgress, useMediaQuery,
-  Select, FormControl,
+  Select, FormControl, TextField,
 } from '@mui/material'
 import { ThemeProvider, CssBaseline, useTheme } from '@mui/material'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
@@ -13,10 +13,13 @@ import DarkModeIcon from '@mui/icons-material/DarkMode'
 import client from '../api/client.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ThemeModeProvider, useThemeMode } from '../context/ThemeModeContext.jsx'
+import { LiveThemeProvider, useLiveTheme } from '../context/LiveThemeContext.jsx'
+import { NavDataContext } from '../context/NavDataContext.jsx'
 import buildProfileTheme from '../theme/buildProfileTheme.js'
 
 // Settings nav sections and items.
 const SETTINGS_NAV = [
+  { label: 'Homepage', href: '/dashboard/homepage' },
   { label: 'Profile', href: '/dashboard/profile' },
   { label: 'Appearance', href: '/dashboard/appearance' },
   { label: 'Features', href: '/dashboard/features' },
@@ -62,15 +65,16 @@ function MobileNavSelect({ items, adminItems, isAdmin, location }) {
   )
 }
 
-// The inner layout that can access ThemeModeContext.
-function SettingsLayoutInner({ user, navData }) {
+// The inner layout that can access ThemeModeContext and LiveThemeContext.
+function SettingsLayoutInner({ user, navData, reloadNavData }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { logout } = useAuth()
   const { mode, toggleMode } = useThemeMode()
   const [accountAnchor, setAccountAnchor] = useState(null)
+  const { liveTheme } = useLiveTheme()
 
-  const theme = buildProfileTheme(user?.theme, mode)
+  const theme = buildProfileTheme(liveTheme, mode)
   const navFontSize = theme.navFontSize
   const fontDisplay = theme.fontDisplay
 
@@ -122,6 +126,7 @@ function SettingsLayoutInner({ user, navData }) {
   }
 
   return (
+    <NavDataContext.Provider value={{ navData, reloadNavData }}>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
@@ -159,7 +164,7 @@ function SettingsLayoutInner({ user, navData }) {
               <Box sx={{ flexGrow: 1 }} />
 
               {/* Nav items from the user's own profile */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 {features.blog === true && blogItems.length > 0 && (
                   <NavDropdown
                     label="Blog"
@@ -226,7 +231,15 @@ function SettingsLayoutInner({ user, navData }) {
                 onClick={handleAccountClick}
                 startIcon={<AccountCircleIcon />}
                 endIcon={<KeyboardArrowDownIcon />}
-                sx={{ color: 'inherit', ml: 0.5, textTransform: 'none', fontSize: 14, fontWeight: 500 }}
+                sx={{
+                  color: 'inherit',
+                  ml: 0.5,
+                  fontFamily: `'${fontDisplay}', Georgia, serif`,
+                  fontSize: navFontSize,
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                }}
               >
                 Account
               </Button>
@@ -390,6 +403,7 @@ function SettingsLayoutInner({ user, navData }) {
         </Box>
       </Box>
     </ThemeProvider>
+    </NavDataContext.Provider>
   )
 }
 
@@ -424,6 +438,7 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{ sx: { minWidth: anchorEl?.offsetWidth ?? 120 } }}
       >
         {items.map((item) => (
           <MenuItem
@@ -431,7 +446,7 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
             component={RouterLink}
             to={item.href}
             onClick={handleClose}
-            sx={{ fontSize: 14 }}
+            sx={{ fontSize: navFontSize }}
           >
             {item.label}
           </MenuItem>
@@ -443,7 +458,7 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
               component={RouterLink}
               to={allHref}
               onClick={handleClose}
-              sx={{ fontSize: 14, fontStyle: 'italic' }}
+              sx={{ fontSize: navFontSize, fontStyle: 'italic' }}
             >
               {allLabel || 'See all →'}
             </MenuItem>
@@ -467,8 +482,16 @@ export default function SettingsLayout() {
     }
   }, [authLoading, user, navigate])
 
+  const loadNavData = useCallback(() => {
+    if (!user) return
+    client.get(`/u/${user.username}`)
+      .then((res) => setNavData(res.data))
+      .catch(() => setNavData(null))
+  }, [user])
+
   useEffect(() => {
     if (!user) return
+    setNavLoading(true)
     client.get(`/u/${user.username}`)
       .then((res) => setNavData(res.data))
       .catch(() => setNavData(null))
@@ -486,8 +509,10 @@ export default function SettingsLayout() {
   if (!user) return null
 
   return (
-    <ThemeModeProvider>
-      <SettingsLayoutInner user={user} navData={navData} />
-    </ThemeModeProvider>
+    <LiveThemeProvider initialTheme={user?.theme}>
+      <ThemeModeProvider>
+        <SettingsLayoutInner user={user} navData={navData} reloadNavData={loadNavData} />
+      </ThemeModeProvider>
+    </LiveThemeProvider>
   )
 }

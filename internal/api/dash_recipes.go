@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/trentzz/charlotte/internal/middleware"
 	"github.com/trentzz/charlotte/internal/models"
 	"github.com/trentzz/charlotte/internal/slug"
+	"github.com/trentzz/charlotte/internal/storage"
 )
 
 // DashRecipeList handles GET /api/v1/dashboard/recipes — list all recipes including drafts.
@@ -27,11 +29,14 @@ func (a *App) DashRecipeCreate(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 
 	var body struct {
-		Title       string          `json:"title"`
-		Description string          `json:"description"`
-		Ingredients json.RawMessage `json:"ingredients"`
-		Steps       json.RawMessage `json:"steps"`
-		Published   bool            `json:"published"`
+		Title             string                     `json:"title"`
+		Description       string                     `json:"description"`
+		Ingredients       json.RawMessage            `json:"ingredients"`
+		Steps             json.RawMessage            `json:"steps"`
+		IngredientsGroups []models.IngredientGroup   `json:"ingredients_groups"`
+		MethodGroups      []models.MethodGroup       `json:"method_groups"`
+		Variations        []models.Variation         `json:"variations"`
+		Published         bool                       `json:"published"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		a.respondError(w, http.StatusBadRequest, "invalid request body")
@@ -46,13 +51,16 @@ func (a *App) DashRecipeCreate(w http.ResponseWriter, r *http.Request) {
 
 	s := makeUniqueSlug(a.DB, "recipes", user.ID, 0, slug.Make(title))
 	id, err := models.CreateRecipe(a.DB, &models.Recipe{
-		UserID:      user.ID,
-		Title:       title,
-		Slug:        s,
-		Description: sanitizeContent(body.Description),
-		Ingredients: parseStringOrArray(body.Ingredients),
-		Steps:       parseStringOrArray(body.Steps),
-		Published:   body.Published,
+		UserID:            user.ID,
+		Title:             title,
+		Slug:              s,
+		Description:       sanitizeContent(body.Description),
+		Ingredients:       parseStringOrArray(body.Ingredients),
+		Steps:             parseStringOrArray(body.Steps),
+		IngredientsGroups: body.IngredientsGroups,
+		MethodGroups:      body.MethodGroups,
+		Variations:        body.Variations,
+		Published:         body.Published,
 	})
 	if err != nil {
 		a.internalError(w, r, err)
@@ -85,12 +93,15 @@ func (a *App) DashRecipeUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Title       string          `json:"title"`
-		Description string          `json:"description"`
-		Ingredients json.RawMessage `json:"ingredients"`
-		Steps       json.RawMessage `json:"steps"`
-		Published   bool            `json:"published"`
-		Slug        string          `json:"slug"`
+		Title             string                   `json:"title"`
+		Description       string                   `json:"description"`
+		Ingredients       json.RawMessage          `json:"ingredients"`
+		Steps             json.RawMessage          `json:"steps"`
+		IngredientsGroups []models.IngredientGroup `json:"ingredients_groups"`
+		MethodGroups      []models.MethodGroup     `json:"method_groups"`
+		Variations        []models.Variation       `json:"variations"`
+		Published         bool                     `json:"published"`
+		Slug              string                   `json:"slug"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		a.respondError(w, http.StatusBadRequest, "invalid request body")
@@ -101,6 +112,9 @@ func (a *App) DashRecipeUpdate(w http.ResponseWriter, r *http.Request) {
 	recipe.Description = sanitizeContent(body.Description)
 	recipe.Ingredients = parseStringOrArray(body.Ingredients)
 	recipe.Steps = parseStringOrArray(body.Steps)
+	recipe.IngredientsGroups = body.IngredientsGroups
+	recipe.MethodGroups = body.MethodGroups
+	recipe.Variations = body.Variations
 	recipe.Published = body.Published
 
 	rawSlug := slug.Make(strings.TrimSpace(body.Slug))
@@ -195,6 +209,88 @@ func (a *App) DashAttemptDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.respondJSON(w, http.StatusOK, map[string]string{"message": "attempt deleted"})
+}
+
+// DashRecipePhotoUpload handles POST /api/v1/dashboard/recipes/{id}/photos — multipart upload.
+// Form fields: photos[] (files), caption (optional string).
+func (a *App) DashRecipePhotoUpload(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	recipe, ok := a.getOwnedRecipe(w, r, user)
+	if !ok {
+		return
+	}
+
+	if err := r.ParseMultipartForm(20*storage.MaxUploadBytes + (1 << 20)); err != nil {
+		a.respondError(w, http.StatusBadRequest, "bad request")
+		return
+	}
+
+	files := r.MultipartForm.File["photos"]
+	if len(files) == 0 {
+		a.respondError(w, http.StatusBadRequest, "no files selected")
+		return
+	}
+
+	caption := strings.TrimSpace(r.FormValue("caption"))
+	var uploaded []recipePhotoJSON
+	failed := 0
+	for _, fhdr := range files {
+		result, err := storage.SaveUpload(a.DataDir, user.ID, fhdr)
+		if err != nil {
+			failed++
+			continue
+		}
+		photoID, err := models.AddRecipePhoto(a.DB, &models.RecipePhoto{
+			RecipeID: recipe.ID,
+			UserID:   user.ID,
+			Path:     result.Filename,
+			Caption:  caption,
+		})
+		if err != nil {
+			_ = storage.DeleteUpload(a.DataDir, user.ID, result.Filename)
+			failed++
+			continue
+		}
+		if p, err := models.GetRecipePhoto(a.DB, photoID); err == nil {
+			uploaded = append(uploaded, toRecipePhotoJSON(p))
+		}
+	}
+
+	if uploaded == nil {
+		uploaded = []recipePhotoJSON{}
+	}
+	a.respondJSON(w, http.StatusOK, map[string]any{
+		"uploaded": uploaded,
+		"failed":   failed,
+		"message":  fmt.Sprintf("%d uploaded, %d failed", len(uploaded), failed),
+	})
+}
+
+// DashRecipePhotoDelete handles DELETE /api/v1/dashboard/recipes/{id}/photos/{photoID}.
+func (a *App) DashRecipePhotoDelete(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	if _, ok := a.getOwnedRecipe(w, r, user); !ok {
+		return
+	}
+
+	photoID, err := strconv.ParseInt(r.PathValue("photoID"), 10, 64)
+	if err != nil {
+		a.respondError(w, http.StatusNotFound, "photo not found")
+		return
+	}
+
+	photo, err := models.GetRecipePhoto(a.DB, photoID)
+	if err != nil {
+		a.respondError(w, http.StatusNotFound, "photo not found")
+		return
+	}
+
+	if err := models.DeleteRecipePhoto(a.DB, photoID, user.ID); err != nil {
+		a.respondError(w, http.StatusNotFound, "photo not found")
+		return
+	}
+	_ = storage.DeleteUpload(a.DataDir, photo.UserID, photo.Path)
+	a.respondJSON(w, http.StatusOK, map[string]string{"message": "photo deleted"})
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

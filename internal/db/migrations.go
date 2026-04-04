@@ -183,6 +183,27 @@ var migrations = []string{
 	)`,
 
 	`CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)`,
+
+	// 17: homepage grid layout for each user
+	`ALTER TABLE users ADD COLUMN homepage_json TEXT NOT NULL DEFAULT '{}'`,
+
+	// 18: structured recipe columns (ingredients groups, method groups, variations)
+	`ALTER TABLE recipes ADD COLUMN ingredients_json TEXT NOT NULL DEFAULT '[]'`,
+	`ALTER TABLE recipes ADD COLUMN method_json TEXT NOT NULL DEFAULT '[]'`,
+	`ALTER TABLE recipes ADD COLUMN variations_json TEXT NOT NULL DEFAULT '[]'`,
+
+	// 19: recipe photos
+	`CREATE TABLE IF NOT EXISTS recipe_photos (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		recipe_id  INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+		user_id    INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+		path       TEXT    NOT NULL,
+		caption    TEXT    NOT NULL DEFAULT '',
+		sort_order INTEGER NOT NULL DEFAULT 0,
+		created_at INTEGER NOT NULL DEFAULT (unixepoch())
+	)`,
+
+	`CREATE INDEX IF NOT EXISTS idx_recipe_photos_recipe_id ON recipe_photos(recipe_id)`,
 }
 
 // migrate runs any migrations that have not yet been applied, in order.

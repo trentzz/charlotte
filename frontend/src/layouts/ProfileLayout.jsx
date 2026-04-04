@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Outlet, Link as RouterLink, useParams, useNavigate } from 'react-router-dom'
 import {
   AppBar, Toolbar, Typography, Box, Button, MenuItem,
-  IconButton, Menu, Divider, CircularProgress,
+  IconButton, Menu, Divider, CircularProgress, TextField,
 } from '@mui/material'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
@@ -17,10 +17,14 @@ import buildProfileTheme from '../theme/buildProfileTheme.js'
 // A nav button that opens a dropdown on click.
 function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay }) {
   const [anchorEl, setAnchorEl] = useState(null)
+  const [filterText, setFilterText] = useState('')
   const open = Boolean(anchorEl)
 
   const handleClick = (e) => setAnchorEl(e.currentTarget)
-  const handleClose = () => setAnchorEl(null)
+  const handleClose = () => {
+    setAnchorEl(null)
+    setFilterText('')
+  }
 
   const labelStyle = {
     fontFamily: `'${fontDisplay}', Georgia, serif`,
@@ -29,6 +33,10 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
     fontWeight: 700,
     letterSpacing: '0.08em',
   }
+
+  const visibleItems = filterText.trim()
+    ? items.filter((i) => i.label.toLowerCase().includes(filterText.toLowerCase()))
+    : items
 
   return (
     <>
@@ -45,26 +53,41 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{ sx: { minWidth: anchorEl?.offsetWidth ?? 120 } }}
       >
-        {items.map((item) => (
+        {items.length > 3 && (
+          <Box sx={{ px: 1.5, pt: 1, pb: 0.5 }}>
+            <TextField
+              size="small"
+              placeholder="Search…"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+              autoFocus
+              fullWidth
+              sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
+            />
+          </Box>
+        )}
+        {visibleItems.map((item) => (
           <MenuItem
             key={item.href}
             component={RouterLink}
             to={item.href}
             onClick={handleClose}
-            sx={{ fontSize: 14 }}
+            sx={{ fontSize: navFontSize }}
           >
             {item.label}
           </MenuItem>
         ))}
         {allHref && (
           <>
-            {items.length > 0 && <Divider />}
+            {visibleItems.length > 0 && <Divider />}
             <MenuItem
               component={RouterLink}
               to={allHref}
               onClick={handleClose}
-              sx={{ fontSize: 14, fontStyle: 'italic' }}
+              sx={{ fontSize: navFontSize, fontStyle: 'italic' }}
             >
               {allLabel || 'See all →'}
             </MenuItem>
@@ -167,7 +190,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
               <Box sx={{ flexGrow: 1 }} />
 
               {/* Nav items */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 {features.blog === true && (
                   <NavDropdown
                     label="Blog"
@@ -231,7 +254,15 @@ function ProfileLayoutInner({ username, profile, navData }) {
                     onClick={handleAccountClick}
                     startIcon={<AccountCircleIcon />}
                     endIcon={<KeyboardArrowDownIcon />}
-                    sx={{ color: 'inherit', ml: 0.5, textTransform: 'none', fontSize: 14, fontWeight: 500 }}
+                    sx={{
+                      color: 'inherit',
+                      ml: 0.5,
+                      fontFamily: `'${fontDisplay}', Georgia, serif`,
+                      fontSize: navFontSize,
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                    }}
                   >
                     Account
                   </Button>
@@ -283,10 +314,23 @@ function ProfileLayoutInner({ username, profile, navData }) {
 
         <Box
           component="footer"
-          sx={{ py: 3, textAlign: 'center', color: 'text.secondary', fontSize: 13 }}
+          sx={{
+            py: 3,
+            mt: 4,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            justifyContent: 'center',
+          }}
         >
-          <Typography variant="caption">
-            {profile?.display_name || username}
+          <Typography
+            component={RouterLink}
+            to="/"
+            variant="body2"
+            color="text.secondary"
+            sx={{ textDecoration: 'none', '&:hover': { color: 'text.primary' } }}
+          >
+            Charlotte
           </Typography>
         </Box>
       </Box>

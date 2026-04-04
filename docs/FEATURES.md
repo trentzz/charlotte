@@ -30,16 +30,21 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - Per-album visibility toggle (public / private).
 - Album cover photo: set automatically on first upload; can be changed manually.
 - **Gallery home**: single top nav only, then a "Gallery" section title, album grid (no rounded corners) and a recent photos grid.
-- **Album page**: editorial, photography-first layout inspired by Sean Tucker's style. Centred title in the display font, muted photo count, optional italic description, then a full-width 3-column photo grid (2 on tablet, 1 on mobile) with 3 px gap and no rounded corners. Back link at the bottom.
+- **Album page**: editorial, photography-first layout inspired by Sean Tucker's style. Centred title in the display font, muted photo count, optional italic description, then a full-width masonry photo grid (3 columns on desktop, 2 on tablet ≤900 px, 1 on mobile ≤600 px) with 10 px gap, original aspect ratios preserved, and no rounded corners. Back link at the bottom.
 - Albums listed as direct links in the Gallery nav dropdown.
 - **Lightbox**: click any photo to view full-size with prev/next navigation and keyboard support (arrow keys, Escape).
 
 ### Recipes
 
-- Create and edit recipes with ingredient list and step-by-step method (plain text, newline-delimited).
+- Create and edit recipes with a structured ingredient list and step-by-step method.
 - Per-recipe visibility toggle (public / private).
-- **Variations journal**: log named variations on each recipe with a title and freeform notes, timestamped.
-- **Inline editing**: owner can click Edit on the public recipe page and save directly.
+- **Ingredient groups**: ingredients are organised into named sections (e.g. "For the sauce"). Each section has an optional heading and a list of items. Multiple sections can be added, removed, and reordered.
+- **Method groups**: method steps are organised into named sections (e.g. "Prepare"). Each section has an optional heading and a list of steps. Multiple sections can be added, removed, and reordered.
+- **Drag-and-drop reordering**: ingredients and method steps can be dragged to reorder within their section using `@dnd-kit`.
+- **Variations**: a recipe can have named variations (e.g. "Vegan version"), each with a title and freeform notes. Variations are displayed on the public recipe page.
+- **Attempts journal**: log cooking attempts on each recipe with a title and freeform notes, timestamped.
+- Data stored as JSON in three dedicated columns: `ingredients_json`, `method_json`, `variations_json`. Legacy flat-text columns retained for backwards compatibility.
+- Public recipe page renders grouped ingredients and method with section headings, and displays variations in a separate section below notes.
 
 ### Projects
 
@@ -49,11 +54,26 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - Shown as a responsive grid on the user home page (up to 6 recent) and on a dedicated `/u/{username}/projects/` page.
 - Feature flag: enable or disable from the dashboard features page.
 
+### Homepage grid builder
+
+- Each user has a fully customisable homepage at `/u/{username}/` built from a free-form widget grid.
+- **Dashboard editor** at `/dashboard/homepage`: left panel lists available widget types (Profile card, Text block, Link, Blog post, Photo, Album, Recipe, Project). Clicking "Add" places a widget on the canvas.
+- **Canvas**: 12-column grid with 80 px row height. Drag widgets by their top handle strip; resize via the bottom-right handle. Layout auto-compacts vertically.
+- **Auto-save**: changes debounce for 1 second and then save silently to `PUT /api/v1/dashboard/homepage`.
+- **Content-linked widgets** (blog post, photo, album, recipe, project): a picker dialog lists all available items so the user can choose which one to pin.
+- **Text widget**: a dialog accepts plain text or markdown to display inline.
+- **Link widget**: a dialog accepts a URL and optional label; renders as a clickable card.
+- **Profile widget**: displays the user's avatar, display name, and bio snippet.
+- **Public renderer**: if the user has at least one widget, the home page renders the custom grid (non-draggable, non-resizable). If no widgets are set, the default layout (recent posts) is shown as a fallback.
+- Widget layout stored as JSON in the `homepage_json` column of the `users` table. Included in the `GET /api/v1/u/{username}` response under the `homepage` key.
+- **Robustness**: the layout conversion guards against widgets missing a `layout` property (defaults to `{x:0, y:0, w:4, h:3}`). API errors show an Alert instead of a blank screen.
+
 ### User profile
 
 - Display name, bio, avatar upload.
 - Up to 10 external links (label + URL).
 - Per-user feature toggles: Blog, About, Gallery, Recipes, Projects.
+- **Live avatar update**: after a successful avatar upload, the dashboard nav bar refreshes its profile data immediately without requiring a page reload.
 
 ---
 
@@ -65,12 +85,13 @@ User public pages have **one nav bar only** — the sticky white top nav. No sec
 - **Nav order**: Home | Blog ▾ | Projects ▾ | Gallery ▾ | Recipes ▾ | About
 - **Blog dropdown**: up to 5 most recent published posts + "See all posts →".
 - **Projects dropdown**: up to 5 most recent published projects + "See all →".
-- **Gallery dropdown**: all published albums as direct links + "See all →".
+- **Gallery dropdown**: all published albums as direct links + "See all →". Albums are fetched from `GET /api/v1/u/{username}` and returned in the `albums` field alongside `recent_photos`.
 - **Recipes dropdown**: up to 5 most recent published recipes + "See all →".
 - **About**: plain link, no dropdown.
 - **Account icon** (top right, all logged-in users): dropdown with My Page, Dashboard, Admin (if applicable), Log out.
 - **All dropdowns open on click**, not on hover. Close on outside click or Escape.
-- **Nav font**: DM Serif Display, uppercase, bold. Size configurable via Appearance settings (10–20 px slider).
+- **Nav font**: DM Serif Display, uppercase, bold. Size configurable via Appearance settings (10–20 px slider). The Account button matches this style in both ProfileLayout and SettingsLayout.
+- **Nav item spacing**: 16 px gap between nav items (MUI `gap: 2`).
 - Charlotte branding appears only in the footer.
 
 ---
@@ -95,6 +116,7 @@ Default theme: sage green accent, warm cream background, DM Serif Display headin
 ## Dashboard
 
 - Overview page with quick links and content counts.
+- **Homepage builder**: drag-and-drop grid editor for the public home page (see above).
 - Profile editor: display name, bio, avatar, external links.
 - **Appearance editor**: accent colour, background colour, fonts, font size, nav label size (HSL sliders, live preview).
 - Feature toggles: Blog, About, Gallery, Recipes, Projects.
@@ -155,7 +177,8 @@ The frontend is a React 18 + Material UI 5 single-page application built with Vi
 ### Architecture
 
 - `frontend/src/api/client.js` — Axios instance with CSRF interceptor (reads `charlotte_csrf` cookie) and 401 event dispatch.
-- `frontend/src/context/AuthContext.jsx` — User session state, hydrated from `GET /api/v1/auth/me` on mount.
+- `frontend/src/context/AuthContext.jsx` — User session state, hydrated from `GET /api/v1/auth/me` on mount. Exposes `refresh()` to re-fetch the current user.
+- `frontend/src/context/NavDataContext.jsx` — Provides `navData` and `reloadNavData` to dashboard pages so child pages can trigger a nav refresh without remounting the layout.
 - `frontend/src/theme/buildProfileTheme.js` — Converts a user's stored theme object into a MUI `createTheme()` call. HSL colours, font families, and font sizes all applied.
 - `frontend/src/layouts/ProfileLayout.jsx` — Per-user public page layout: fetches profile, builds per-user MUI theme, renders sticky nav with click-open dropdowns.
 - `frontend/src/layouts/DashboardLayout.jsx` — Persistent sidebar nav layout for all dashboard and admin pages.
@@ -170,8 +193,9 @@ All routes under `/u/:username/` use the per-user theme. Nav has click-open drop
 - Blog — table of posts, `react-quill` rich text editor for body content.
 - About — raw Markdown textarea (server renders to HTML).
 - Gallery — album CRUD, photo upload (multi-file), lightbox view, delete.
-- Recipes — form editor with ingredient and step list management.
+- Recipes — form editor with grouped ingredients and method steps (drag-to-reorder within each section), multiple sections per recipe, and named variations.
 - Projects — card grid with inline create/edit forms.
+- Homepage builder — `react-grid-layout` drag-and-resize canvas with widget palette sidebar.
 
 ### Admin
 
@@ -189,9 +213,28 @@ Output goes to `frontend/dist/`. The Go binary serves `frontend/dist/index.html`
 
 ---
 
+## Landing page
+
+- Spider-web themed design with subtle decorative SVG web overlays (opacity 0.06) positioned in the hero section corners.
+- Applies the first admin user's configured theme (colours, fonts) via `buildProfileTheme`. Falls back to the default theme if no admin exists.
+- Light/dark mode toggle (same sun/moon icon used in ProfileLayout); mode is persisted in `localStorage` as `charlotte_theme_mode`.
+- Top bar: Charlotte logo (display font) on the left; light/dark toggle, Log in, and Register (if registration open) on the right; Dashboard if logged in.
+- Hero: large display-font site name, italic tagline ("Some website. Radiant." — a nod to Charlotte's Web), optional site description, CTA buttons.
+- User grid below hero: flat cards (no Paper elevation) with avatar, display name, username, and truncated bio. Links to `/u/{username}`.
+- Footer: "Charlotte" centred, divider line.
+- `GET /api/v1/settings` now includes `admin_theme` — the first active admin's theme object — so the landing page can adopt it without a separate API call.
+
+---
+
+## User profile footer
+
+- A "Charlotte" footer link appears at the bottom of every public user page (ProfileLayout), linking back to `/`. Styled `text.secondary`, underline-free, with a hover to `text.primary`.
+
+---
+
 ## Planned / in progress
 
 - [ ] Blog editor upgrade: replace react-quill with Tiptap for better image handling and a cleaner API.
 - [ ] Per-user colour scheme live preview on the public page (currently requires saving to see full effect).
 - [ ] Project image upload from the dashboard (currently projects only support a title, description, and URL).
-- [ ] Recipe attempt/variation journal from the dashboard UI (API endpoints exist).
+- [ ] Recipe attempt journal entry UI in the dashboard (API endpoints exist).

@@ -1,13 +1,20 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link as RouterLink } from 'react-router-dom'
 import {
-  Box, Typography, Button, CircularProgress, Alert, Grid,
+  Box, Typography, Button, CircularProgress, Alert,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Link,
 } from '@mui/material'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
 import DeleteIcon from '@mui/icons-material/Delete'
+import Masonry from 'react-masonry-css'
 import client from '../../api/client.js'
 import Lightbox from '../../components/Lightbox.jsx'
+
+const breakpointColumns = {
+  default: 3,
+  900: 2,
+  600: 1,
+}
 
 export default function AlbumView() {
   const { id } = useParams()
@@ -96,53 +103,53 @@ export default function AlbumView() {
       {photos.length === 0 ? (
         <Typography color="text.secondary">No photos yet. Upload some to get started.</Typography>
       ) : (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '3px',
-          }}
-        >
-          {photos.map((photo, i) => {
-            const rawSrc = photo.url || photo.path || ''
-            const src = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
-            return (
-              <Box key={photo.id || i} sx={{ position: 'relative', '&:hover .del-btn': { opacity: 1 } }}>
-                <Box
-                  component="img"
-                  src={src}
-                  alt={photo.caption || ''}
-                  onClick={() => { setLightboxIndex(i); setLightboxOpen(true) }}
-                  sx={{
-                    width: '100%',
-                    aspectRatio: '1 / 1',
-                    objectFit: 'cover',
-                    borderRadius: 0,
-                    display: 'block',
-                    cursor: 'pointer',
-                  }}
-                />
-                <IconButton
-                  className="del-btn"
-                  size="small"
-                  onClick={() => setDeleteId(photo.id)}
-                  sx={{
-                    position: 'absolute',
-                    top: 4,
-                    right: 4,
-                    bgcolor: 'rgba(0,0,0,0.55)',
-                    color: '#fff',
-                    opacity: 0,
-                    transition: 'opacity 0.15s',
-                    '&:hover': { bgcolor: 'rgba(200,0,0,0.7)' },
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            )
-          })}
-        </Box>
+        <>
+          <Masonry
+            breakpointCols={breakpointColumns}
+            style={{ display: 'flex', marginLeft: '-10px', width: 'auto' }}
+            columnClassName="masonry-column"
+          >
+            {photos.map((photo, i) => {
+              const rawSrc = photo.url || photo.path || ''
+              const src = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
+              return (
+                <Box key={photo.id || i} sx={{ position: 'relative', marginBottom: '10px', '&:hover .del-btn': { opacity: 1 } }}>
+                  <Box
+                    component="img"
+                    src={src}
+                    alt={photo.caption || ''}
+                    onClick={() => { setLightboxIndex(i); setLightboxOpen(true) }}
+                    sx={{
+                      width: '100%',
+                      height: 'auto',
+                      borderRadius: 0,
+                      display: 'block',
+                      cursor: 'pointer',
+                    }}
+                  />
+                  <IconButton
+                    className="del-btn"
+                    size="small"
+                    onClick={() => setDeleteId(photo.id)}
+                    sx={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      bgcolor: 'rgba(0,0,0,0.55)',
+                      color: '#fff',
+                      opacity: 0,
+                      transition: 'opacity 0.15s',
+                      '&:hover': { bgcolor: 'rgba(200,0,0,0.7)' },
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              )
+            })}
+          </Masonry>
+          <style>{`.masonry-column { padding-left: 10px; background-clip: padding-box; }`}</style>
+        </>
       )}
 
       <Lightbox
