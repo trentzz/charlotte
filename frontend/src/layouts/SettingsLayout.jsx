@@ -159,7 +159,7 @@ function SettingsLayoutInner({ user, navData }) {
               <Box sx={{ flexGrow: 1 }} />
 
               {/* Nav items from the user's own profile */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {features.blog === true && blogItems.length > 0 && (
                   <NavDropdown
                     label="Blog"

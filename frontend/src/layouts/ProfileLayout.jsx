@@ -167,7 +167,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
               <Box sx={{ flexGrow: 1 }} />
 
               {/* Nav items */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {features.blog === true && (
                   <NavDropdown
                     label="Blog"

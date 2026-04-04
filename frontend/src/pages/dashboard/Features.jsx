@@ -6,11 +6,11 @@ import {
 import client from '../../api/client.js'
 
 const FEATURE_LIST = [
-  { key: 'blog_enabled', label: 'Blog', description: 'Share written posts with your readers.' },
-  { key: 'gallery_enabled', label: 'Gallery', description: 'Showcase photos organised into albums.' },
-  { key: 'recipes_enabled', label: 'Recipes', description: 'Publish recipes and track your cooking attempts.' },
-  { key: 'projects_enabled', label: 'Projects', description: 'Showcase your projects with links and images.' },
-  { key: 'about_enabled', label: 'About page', description: 'A standalone page introducing yourself.' },
+  { key: 'blog', label: 'Blog', description: 'Share written posts with your readers.' },
+  { key: 'gallery', label: 'Gallery', description: 'Showcase photos organised into albums.' },
+  { key: 'recipes', label: 'Recipes', description: 'Publish recipes and track your cooking attempts.' },
+  { key: 'projects', label: 'Projects', description: 'Showcase your projects with links and images.' },
+  { key: 'about', label: 'About page', description: 'A standalone page introducing yourself.' },
 ]
 
 export default function Features() {
@@ -38,7 +38,7 @@ export default function Features() {
     setSuccess(null)
     setSaving(true)
     try {
-      await client.put('/dashboard/features', { features })
+      await client.put('/dashboard/features', features)
       setSuccess('Features saved.')
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save features.')
