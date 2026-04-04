@@ -105,6 +105,24 @@ All colours are configurable per user via HSL sliders in Dashboard → Appearanc
 
 ---
 
+## Settings sidebar
+
+- Active item has a **rounded filled box** highlight (like Claude's settings page). No border, no left-bar indicator.
+- Use `bgcolor: 'action.selected'` and `borderRadius: 1.5` for the active state.
+- **No vertical divider line** between the sidebar and content area.
+- Inactive items are muted (`text.secondary`), active items are `text.primary` with the filled background.
+
+---
+
+## Appearance auto-save
+
+- When the user changes a colour (picker) or selects a font (card), the page **auto-saves** after 800ms of inactivity.
+- No explicit Save button required — changes persist automatically.
+- A brief "Saved." confirmation appears for 2 seconds after each auto-save.
+- The page theme (colours, fonts) updates live in the browser as the user makes changes.
+
+---
+
 ## Dashboard layout
 
 - The dashboard is NOT a separate shell with its own AppBar/Drawer. It is a normal page, just like Blog or Gallery.

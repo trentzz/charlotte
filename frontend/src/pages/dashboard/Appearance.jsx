@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import {
   Box, Typography, Slider, Button, Alert, CircularProgress,
   Divider, Stack, Tabs, Tab, TextField, useTheme,
@@ -245,6 +245,9 @@ export default function Appearance() {
   const [success, setSuccess] = useState(null)
   // 0 = light, 1 = dark
   const [colourTab, setColourTab] = useState(0)
+  const autoSaveTimer = useRef(null)
+  // Track whether the initial load is done so we don't auto-save on mount.
+  const initialised = useRef(false)
 
   useEffect(() => {
     client.get('/dashboard/appearance')
@@ -252,8 +255,35 @@ export default function Appearance() {
         setTheme((prev) => ({ ...prev, ...res.data }))
       })
       .catch(() => setError('Failed to load appearance settings.'))
-      .finally(() => setLoading(false))
+      .finally(() => {
+        setLoading(false)
+        initialised.current = true
+      })
   }, [])
+
+  // Auto-save 800ms after the last change.
+  useEffect(() => {
+    if (!initialised.current) return
+    clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(() => {
+      doSave(theme)
+    }, 800)
+    return () => clearTimeout(autoSaveTimer.current)
+  }, [theme])
+
+  async function doSave(t) {
+    setSaving(true)
+    setError(null)
+    try {
+      await client.put('/dashboard/appearance', t)
+      setSuccess('Saved.')
+      setTimeout(() => setSuccess(null), 2000)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function set(key, val) {
     setTheme((t) => ({ ...t, [key]: val }))

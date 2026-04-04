@@ -160,7 +160,7 @@ function SettingsLayoutInner({ user, navData }) {
 
               {/* Nav items from the user's own profile */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                {features.blog_enabled !== false && blogItems.length > 0 && (
+                {features.blog === true && blogItems.length > 0 && (
                   <NavDropdown
                     label="Blog"
                     items={blogItems}
@@ -170,12 +170,12 @@ function SettingsLayoutInner({ user, navData }) {
                     fontDisplay={fontDisplay}
                   />
                 )}
-                {features.blog_enabled !== false && blogItems.length === 0 && (
+                {features.blog === true && blogItems.length === 0 && (
                   <Button component={RouterLink} to={`/u/${username}/blog`} sx={{ color: 'inherit', ...navLabelStyle }}>
                     Blog
                   </Button>
                 )}
-                {features.projects_enabled !== false && (
+                {features.projects === true && (
                   <NavDropdown
                     label="Projects"
                     items={projectItems}
@@ -185,7 +185,7 @@ function SettingsLayoutInner({ user, navData }) {
                     fontDisplay={fontDisplay}
                   />
                 )}
-                {features.gallery_enabled !== false && (
+                {features.gallery === true && (
                   <NavDropdown
                     label="Gallery"
                     items={galleryItems}
@@ -195,7 +195,7 @@ function SettingsLayoutInner({ user, navData }) {
                     fontDisplay={fontDisplay}
                   />
                 )}
-                {features.recipes_enabled !== false && (
+                {features.recipes === true && (
                   <NavDropdown
                     label="Recipes"
                     items={recipeItems}
@@ -205,7 +205,7 @@ function SettingsLayoutInner({ user, navData }) {
                     fontDisplay={fontDisplay}
                   />
                 )}
-                {features.about_enabled !== false && (
+                {features.about === true && (
                   <Button
                     component={RouterLink}
                     to={`/u/${username}/about`}
@@ -291,8 +291,6 @@ function SettingsLayoutInner({ user, navData }) {
                   flexShrink: 0,
                   pt: 4,
                   pr: 3,
-                  borderRight: '1px solid',
-                  borderColor: 'divider',
                   minHeight: 'calc(100vh - 64px)',
                 }}
               >
@@ -311,12 +309,12 @@ function SettingsLayoutInner({ user, navData }) {
                           py: 0.75,
                           fontSize: 14,
                           fontWeight: active ? 600 : 400,
-                          color: active ? 'primary.main' : 'text.secondary',
-                          bgcolor: 'transparent',
-                          borderRadius: 1,
+                          color: active ? 'text.primary' : 'text.secondary',
+                          bgcolor: active ? 'action.selected' : 'transparent',
+                          borderRadius: 1.5,
                           textTransform: 'none',
                           '&:hover': {
-                            bgcolor: 'transparent',
+                            bgcolor: active ? 'action.selected' : 'action.hover',
                             color: 'text.primary',
                           },
                         }}

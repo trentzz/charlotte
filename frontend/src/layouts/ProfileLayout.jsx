@@ -168,7 +168,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
 
               {/* Nav items */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                {features.blog_enabled !== false && (
+                {features.blog === true && (
                   <NavDropdown
                     label="Blog"
                     items={blogItems}
@@ -178,7 +178,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
                     fontDisplay={fontDisplay}
                   />
                 )}
-                {features.projects_enabled !== false && (
+                {features.projects === true && (
                   <NavDropdown
                     label="Projects"
                     items={projectItems}
@@ -188,7 +188,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
                     fontDisplay={fontDisplay}
                   />
                 )}
-                {features.gallery_enabled !== false && (
+                {features.gallery === true && (
                   <NavDropdown
                     label="Gallery"
                     items={galleryItems}
@@ -198,7 +198,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
                     fontDisplay={fontDisplay}
                   />
                 )}
-                {features.recipes_enabled !== false && (
+                {features.recipes === true && (
                   <NavDropdown
                     label="Recipes"
                     items={recipeItems}
@@ -208,7 +208,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
                     fontDisplay={fontDisplay}
                   />
                 )}
-                {features.about_enabled !== false && (
+                {features.about === true && (
                   <Button
                     component={RouterLink}
                     to={`/u/${username}/about`}
