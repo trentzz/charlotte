@@ -58,7 +58,8 @@ function SortableItem({ id, label, onRemove }) {
 
 // ── Ingredient group editor ────────────────────────────────────────────────────
 
-function IngredientGroupEditor({ group, groupIndex, onChange, onRemoveGroup }) {
+// globalOffset is the count of ingredients in all groups before this one.
+function IngredientGroupEditor({ group, groupIndex, globalOffset, onChange, onRemoveGroup }) {
   const [input, setInput] = useState('')
 
   const sensors = useSensors(useSensor(PointerSensor))
@@ -108,7 +109,7 @@ function IngredientGroupEditor({ group, groupIndex, onChange, onRemoveGroup }) {
               <SortableItem
                 key={itemIds[i]}
                 id={itemIds[i]}
-                label={item}
+                label={`${globalOffset + i + 1}. ${item}`}
                 onRemove={() => removeItem(i)}
               />
             ))}
@@ -213,7 +214,7 @@ function MethodGroupEditor({ group, groupIndex, onChange, onRemoveGroup }) {
 
 // ── Variation editor ───────────────────────────────────────────────────────────
 
-function VariationEditor({ variation, index, onChange, onRemove }) {
+function VariationEditor({ variation, index, totalIngredients, totalSteps, onChange, onRemove }) {
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
@@ -236,6 +237,34 @@ function VariationEditor({ variation, index, onChange, onRemove }) {
             rows={3}
             placeholder="e.g. Replace eggs with flax eggs and milk with oat milk."
           />
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <TextField
+              size="small"
+              label="Starting from ingredient #"
+              type="number"
+              inputProps={{ min: 0, max: totalIngredients }}
+              value={variation.from_ingredient || ''}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10)
+                onChange(index, { ...variation, from_ingredient: isNaN(v) || v <= 0 ? 0 : v })
+              }}
+              sx={{ width: 200 }}
+              helperText={totalIngredients > 0 ? `1–${totalIngredients}, or blank` : 'No ingredients yet'}
+            />
+            <TextField
+              size="small"
+              label="Starting from step #"
+              type="number"
+              inputProps={{ min: 0, max: totalSteps }}
+              value={variation.from_step || ''}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10)
+                onChange(index, { ...variation, from_step: isNaN(v) || v <= 0 ? 0 : v })
+              }}
+              sx={{ width: 200 }}
+              helperText={totalSteps > 0 ? `1–${totalSteps}, or blank` : 'No steps yet'}
+            />
+          </Box>
         </Stack>
         <IconButton size="small" color="error" onClick={() => onRemove(index)} sx={{ mt: 0.5 }}>
           <DeleteIcon fontSize="small" />
@@ -319,6 +348,8 @@ export default function RecipeEdit() {
           setVariations(r.variations.map((v) => ({
             title: v.title || '',
             notes: v.notes || '',
+            from_ingredient: v.from_ingredient || 0,
+            from_step: v.from_step || 0,
           })))
         }
 
@@ -361,7 +392,7 @@ export default function RecipeEdit() {
     setVariations((vs) => vs.map((v, idx) => (idx === i ? updated : v)))
   }
   function addVariation() {
-    setVariations((vs) => [...vs, { title: '', notes: '' }])
+    setVariations((vs) => [...vs, { title: '', notes: '', from_ingredient: 0, from_step: 0 }])
   }
   function removeVariation(i) {
     setVariations((vs) => vs.filter((_, idx) => idx !== i))
@@ -480,15 +511,19 @@ export default function RecipeEdit() {
               Add section
             </Button>
           </Box>
-          {ingredientsGroups.map((group, i) => (
-            <IngredientGroupEditor
-              key={i}
-              group={group}
-              groupIndex={i}
-              onChange={updateIngGroup}
-              onRemoveGroup={removeIngGroup}
-            />
-          ))}
+          {ingredientsGroups.map((group, i) => {
+            const offset = ingredientsGroups.slice(0, i).reduce((acc, g) => acc + (g.items || []).length, 0)
+            return (
+              <IngredientGroupEditor
+                key={i}
+                group={group}
+                groupIndex={i}
+                globalOffset={offset}
+                onChange={updateIngGroup}
+                onRemoveGroup={removeIngGroup}
+              />
+            )
+          })}
         </Box>
 
         <Divider />
@@ -532,6 +567,8 @@ export default function RecipeEdit() {
               key={i}
               variation={v}
               index={i}
+              totalIngredients={ingredientsGroups.reduce((acc, g) => acc + (g.items || []).length, 0)}
+              totalSteps={methodGroups.reduce((acc, g) => acc + (g.steps || []).length, 0)}
               onChange={updateVariation}
               onRemove={removeVariation}
             />

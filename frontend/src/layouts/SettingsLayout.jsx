@@ -410,10 +410,14 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
 // Dropdown nav button (same as ProfileLayout).
 function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay }) {
   const [anchorEl, setAnchorEl] = useState(null)
+  const [filterText, setFilterText] = useState('')
   const open = Boolean(anchorEl)
 
   const handleClick = (e) => setAnchorEl(e.currentTarget)
-  const handleClose = () => setAnchorEl(null)
+  const handleClose = () => {
+    setAnchorEl(null)
+    setFilterText('')
+  }
 
   const labelStyle = {
     fontFamily: `'${fontDisplay}', Georgia, serif`,
@@ -422,6 +426,10 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
     fontWeight: 700,
     letterSpacing: '0.08em',
   }
+
+  const visibleItems = filterText.trim()
+    ? items.filter((i) => i.label.toLowerCase().includes(filterText.toLowerCase()))
+    : items
 
   return (
     <>
@@ -440,7 +448,21 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         PaperProps={{ sx: { minWidth: anchorEl?.offsetWidth ?? 120 } }}
       >
-        {items.map((item) => (
+        {items.length > 3 && (
+          <Box sx={{ px: 1.5, pt: 1, pb: 0.5 }}>
+            <TextField
+              size="small"
+              placeholder="Search…"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+              autoFocus
+              fullWidth
+              sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
+            />
+          </Box>
+        )}
+        {visibleItems.map((item) => (
           <MenuItem
             key={item.href}
             component={RouterLink}
@@ -453,7 +475,7 @@ function NavDropdown({ label, items, allHref, allLabel, navFontSize, fontDisplay
         ))}
         {allHref && (
           <>
-            {items.length > 0 && <Divider />}
+            {visibleItems.length > 0 && <Divider />}
             <MenuItem
               component={RouterLink}
               to={allHref}

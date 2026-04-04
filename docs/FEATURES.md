@@ -43,8 +43,9 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - **Drag-and-drop reordering**: ingredients and method steps can be dragged to reorder within their section using `@dnd-kit`.
 - **Variations**: a recipe can have named variations (e.g. "Vegan version"), each with a title and freeform notes. Variations are displayed on the public recipe page.
 - **Attempts journal**: log cooking attempts on each recipe with a title and freeform notes, timestamped.
-- Data stored as JSON in three dedicated columns: `ingredients_json`, `method_json`, `variations_json`. Legacy flat-text columns retained for backwards compatibility.
-- Public recipe page renders grouped ingredients and method with section headings, and displays variations in a separate section below notes.
+- **Recipe photos**: attach photos to a recipe (JPEG, PNG, WebP, GIF; up to 10 MB each; up to 20 per upload batch). Photos are managed from the recipe editor — thumbnails with delete buttons appear in the Photos section. Uploaded files are stored in the same `uploads/{userID}/` path as gallery photos.
+- Data stored as JSON in three dedicated columns: `ingredients_json`, `method_json`, `variations_json`. Photo records stored in the `recipe_photos` table (migration 19). Legacy flat-text columns retained for backwards compatibility.
+- Public recipe page renders grouped ingredients and method with section headings, displays variations below notes, and shows a masonry/grid photo layout below the description (1, 2, or 3 columns depending on photo count).
 
 ### Projects
 
