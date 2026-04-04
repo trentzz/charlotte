@@ -20,15 +20,14 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 
 ### About page
 
-- Single markdown document rendered as a public about page.
+- Single rich-text document rendered as a public about page. Edited via the `react-quill` WYSIWYG editor in the dashboard.
 - **Inline editing**: owner can click Edit on the public about page and save directly.
-- Supports the same GFM markdown as the blog.
 
 ### Gallery
 
 - Upload photos (JPEG, PNG, WebP, GIF) up to 10 MB each; up to 20 files per batch.
-- Photos belong to albums. A "General" album is created automatically for unassigned photos.
-- **Default album**: one album per user is marked as the default upload destination (star badge in the dashboard). Photos uploaded via blog image upload, or any upload that doesn't specify an album, go into this album. Set any album as default using the star button on the album card or inside the album view. The first album created for a user is automatically marked as the default. Migration 23.
+- Photos belong to albums. A default album named "Uploads" is created automatically for unassigned photos.
+- **Default album**: one album per user is marked as the default upload destination (star badge in the dashboard). When auto-created, this album is named "Uploads". Photos uploaded via blog image upload, or any upload that does not specify an album, go into this album. Set any album as default using the star button on the album card or inside the album view. The first album created for a user is automatically marked as the default. Migration 23.
 - Per-album visibility toggle (public / private). Toggle from the album card or the album view header (eye icon). Unpublished albums are hidden from the public gallery.
 - Album cover photo: set automatically on first upload; can be changed manually.
 - **Gallery home**: single top nav only, then a "Gallery" section title, album grid (no rounded corners) and a recent photos grid. Only top-level albums (no parent) appear here.
@@ -50,7 +49,7 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - **Drag-and-drop reordering**: ingredients and method steps can be dragged to reorder within their section using `@dnd-kit`.
 - **Variations**: a recipe can have named variations (e.g. "Vegan version"), each with a title and freeform notes. Variations are displayed on the public recipe page.
 - **Attempts journal**: log cooking attempts on each recipe with a title and freeform notes, timestamped.
-- **Recipe photos**: attach photos to a recipe (JPEG, PNG, WebP, GIF; up to 10 MB each; up to 20 per upload batch). Photos are managed from the recipe editor — thumbnails with delete buttons appear in the Photos section. Uploaded files are stored in the same `uploads/{userID}/` path as gallery photos.
+- **Recipe photos**: attach photos to a recipe (JPEG, PNG, WebP, GIF; up to 10 MB each; up to 20 per upload batch). Photos are managed from the recipe editor — thumbnails with delete buttons appear in the Photos section. **Pick from gallery**: select an existing gallery photo and link it to the recipe without re-uploading. Uploaded files are stored in the same `uploads/{userID}/` path as gallery photos.
 - Data stored as JSON in three dedicated columns: `ingredients_json`, `method_json`, `variations_json`. Photo records stored in the `recipe_photos` table (migration 19). Legacy flat-text columns retained for backwards compatibility.
 - Public recipe page renders grouped ingredients and method with section headings, displays variations below notes, and shows a masonry/grid photo layout below the description (1, 2, or 3 columns depending on photo count).
 
@@ -81,7 +80,7 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - **Profile widget**: displays the user's avatar, display name, and bio snippet.
 - **Public renderer**: if the user has at least one widget, the home page renders the custom grid (non-draggable, non-resizable). If no widgets are set, the default layout (recent posts) is shown as a fallback.
 - Widget layout stored as JSON in the `homepage_json` column of the `users` table. Included in the `GET /api/v1/u/{username}` response under the `homepage` key.
-- **Robustness**: the layout conversion guards against widgets missing a `layout` property (defaults to `{x:0, y:0, w:4, h:3}`). API errors show an Alert instead of a blank screen.
+- **Robustness**: the layout conversion guards against widgets missing a `layout` property (defaults to `{x:0, y:0, w:4, h:3}`) and against null or empty `contentId` values on content-linked widgets. API errors show an Alert instead of a blank screen.
 
 ### User profile
 
@@ -209,7 +208,7 @@ All routes under `/u/:username/` use the per-user theme. Nav has click-open drop
 
 - Overview, Profile, Appearance, Features — site and profile management.
 - Blog — table of posts, `react-quill` rich text editor for body content.
-- About — raw Markdown textarea (server renders to HTML).
+- About — `react-quill` WYSIWYG editor (same as blog and projects).
 - Gallery — album CRUD, photo upload (multi-file), lightbox view, delete.
 - Recipes — form editor with grouped ingredients and method steps (drag-to-reorder within each section), multiple sections per recipe, and named variations.
 - Projects — card grid with inline create/edit forms.
@@ -252,6 +251,5 @@ Output goes to `frontend/dist/`. The Go binary serves `frontend/dist/index.html`
 
 ## Planned / in progress
 
-- [ ] Blog editor upgrade: replace react-quill with Tiptap for better image handling and a cleaner API.
 - [ ] Per-user colour scheme live preview on the public page (currently requires saving to see full effect).
 - [ ] Recipe attempt journal entry UI in the dashboard (API endpoints exist).
