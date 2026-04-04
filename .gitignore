@@ -11,3 +11,10 @@ tmp/
 .DS_Store
 *.swp
 *.swo
+
+# Frontend build artefacts and dependencies
+frontend/node_modules/
+frontend/dist/
+
+# Claude Code worktrees
+.claude/worktrees/

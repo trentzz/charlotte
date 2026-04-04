@@ -37,30 +37,33 @@ func InjectUser(db *sql.DB, next http.Handler) http.Handler {
 	})
 }
 
-// RequireAuth redirects to /login if there is no authenticated user in the context.
+// RequireAuth returns a JSON 401 if there is no authenticated user in the context.
 // It must be chained after InjectUser.
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := UserFromContext(r.Context())
 		if user == nil {
-			http.Redirect(w, r, "/login?next="+r.URL.RequestURI(), http.StatusSeeOther)
+			w.Header().Set("Content-Type", "application/json")
+			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
 			return
 		}
 		if !user.IsActive() {
-			http.Error(w, "Your account is pending approval.", http.StatusForbidden)
+			w.Header().Set("Content-Type", "application/json")
+			http.Error(w, `{"error":"your account is pending approval"}`, http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
 }
 
-// RequireAdmin returns 403 Forbidden if the user is not an admin.
+// RequireAdmin returns a JSON 403 if the user is not an admin.
 // Must be chained after InjectUser and RequireAuth.
 func RequireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := UserFromContext(r.Context())
 		if user == nil || !user.IsAdmin() {
-			http.Error(w, "Forbidden", http.StatusForbidden)
+			w.Header().Set("Content-Type", "application/json")
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)

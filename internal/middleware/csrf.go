@@ -35,15 +35,14 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), csrfCtxKey, token)
 		r = r.WithContext(ctx)
 
-		// Validate on state-changing methods.
+		// Validate on state-changing methods. The SPA sends the token via the
+		// X-CSRF-Token header only — form field fallback is not supported.
 		switch r.Method {
 		case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
-			submitted := r.FormValue(CSRFFieldName)
-			if submitted == "" {
-				submitted = r.Header.Get("X-CSRF-Token")
-			}
+			submitted := r.Header.Get("X-CSRF-Token")
 			if submitted != token {
-				http.Error(w, "Invalid CSRF token", http.StatusForbidden)
+				w.Header().Set("Content-Type", "application/json")
+				http.Error(w, `{"error":"invalid CSRF token"}`, http.StatusForbidden)
 				return
 			}
 		}

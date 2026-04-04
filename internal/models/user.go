@@ -31,6 +31,50 @@ type UserLink struct {
 	URL   string `json:"url"`
 }
 
+// UserTheme holds the visual configuration for a user's public pages.
+type UserTheme struct {
+	AccentH     int    `json:"accent_h"`     // hue 0-360, default 150 (sage green)
+	AccentS     int    `json:"accent_s"`     // saturation 0-100, default 20
+	AccentL     int    `json:"accent_l"`     // lightness 0-100, default 63
+	BgH         int    `json:"bg_h"`         // background hue, default 35
+	BgS         int    `json:"bg_s"`         // background saturation, default 60
+	BgL         int    `json:"bg_l"`         // background lightness, default 97
+	DarkAccentH int    `json:"dark_accent_h"` // dark mode accent hue, default 150
+	DarkAccentS int    `json:"dark_accent_s"` // dark mode accent saturation, default 30
+	DarkAccentL int    `json:"dark_accent_l"` // dark mode accent lightness, default 55
+	DarkBgH     int    `json:"dark_bg_h"`     // dark mode background hue, default 220
+	DarkBgS     int    `json:"dark_bg_s"`     // dark mode background saturation, default 15
+	DarkBgL     int    `json:"dark_bg_l"`     // dark mode background lightness, default 12
+	FontBody    string `json:"font_body"`     // body font, default "EB Garamond"
+	FontDisplay string `json:"font_display"`  // heading font, default "DM Serif Display"
+	FontUI      string `json:"font_ui"`       // UI/interface font (menus, buttons, labels), default "Inter"
+	FontSize    int    `json:"font_size"`     // base font size px, default 16
+	NavFontSize int    `json:"nav_font_size"` // nav label size px, default 13
+}
+
+// DefaultTheme returns the default visual theme matching the site's built-in palette.
+func DefaultTheme() UserTheme {
+	return UserTheme{
+		AccentH:     150,
+		AccentS:     20,
+		AccentL:     63,
+		BgH:         35,
+		BgS:         60,
+		BgL:         97,
+		DarkAccentH: 150,
+		DarkAccentS: 30,
+		DarkAccentL: 55,
+		DarkBgH:     220,
+		DarkBgS:     15,
+		DarkBgL:     12,
+		FontBody:    "Playfair Display",
+		FontDisplay: "Playfair Display",
+		FontUI:      "Inter",
+		FontSize:    16,
+		NavFontSize: 13,
+	}
+}
+
 // User represents a registered account.
 type User struct {
 	ID             int64
@@ -42,13 +86,15 @@ type User struct {
 	AvatarPath     string
 	Role           Role
 	Status         Status
-	FeatureBlog    bool
-	FeatureAbout   bool
-	FeatureGallery bool
-	FeatureRecipes bool
-	Links          []UserLink
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	FeatureBlog     bool
+	FeatureAbout    bool
+	FeatureGallery  bool
+	FeatureRecipes  bool
+	FeatureProjects bool
+	Theme           UserTheme
+	Links           []UserLink
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // DisplayOrUsername returns DisplayName if set, otherwise Username.
@@ -76,6 +122,8 @@ func scanUser(row interface {
 }) (*User, error) {
 	var u User
 	var linksJSON string
+	var themeJSON string
+	var featureProjects int
 	var createdAt, updatedAt int64
 
 	err := row.Scan(
@@ -84,6 +132,7 @@ func scanUser(row interface {
 		&u.Role, &u.Status,
 		&u.FeatureBlog, &u.FeatureAbout, &u.FeatureGallery, &u.FeatureRecipes,
 		&linksJSON, &createdAt, &updatedAt,
+		&featureProjects, &themeJSON,
 	)
 	if err != nil {
 		return nil, err
@@ -92,6 +141,12 @@ func scanUser(row interface {
 	if err := json.Unmarshal([]byte(linksJSON), &u.Links); err != nil {
 		u.Links = nil
 	}
+	u.FeatureProjects = featureProjects == 1
+	theme := DefaultTheme()
+	if themeJSON != "" && themeJSON != "{}" {
+		_ = json.Unmarshal([]byte(themeJSON), &theme)
+	}
+	u.Theme = theme
 	u.CreatedAt = time.Unix(createdAt, 0)
 	u.UpdatedAt = time.Unix(updatedAt, 0)
 	return &u, nil
@@ -100,7 +155,8 @@ func scanUser(row interface {
 const userSelect = `SELECT id, username, email, password_hash,
 	display_name, bio, avatar_path, role, status,
 	feature_blog, feature_about, feature_gallery, feature_recipes,
-	links, created_at, updated_at FROM users`
+	links, created_at, updated_at,
+	feature_projects, theme_json FROM users`
 
 // CreateUser inserts a new user and returns the assigned ID.
 func CreateUser(db *sql.DB, u *User) (int64, error) {
@@ -187,13 +243,26 @@ func UpdateUser(db *sql.DB, u *User) error {
 	return err
 }
 
-// UpdateUserFeatures toggles the four feature flags for a user.
-func UpdateUserFeatures(db *sql.DB, id int64, blog, about, gallery, recipes bool) error {
+// UpdateUserTheme saves the theme JSON for a user.
+func UpdateUserTheme(db *sql.DB, userID int64, theme UserTheme) error {
+	b, err := json.Marshal(theme)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`UPDATE users SET theme_json = ?, updated_at = unixepoch() WHERE id = ?`,
+		string(b), userID)
+	return err
+}
+
+// UpdateUserFeatures toggles the feature flags for a user.
+func UpdateUserFeatures(db *sql.DB, id int64, blog, about, gallery, recipes, projects bool) error {
 	_, err := db.Exec(`UPDATE users SET
 		feature_blog = ?, feature_about = ?, feature_gallery = ?, feature_recipes = ?,
+		feature_projects = ?,
 		updated_at = unixepoch()
 		WHERE id = ?`,
-		boolToInt(blog), boolToInt(about), boolToInt(gallery), boolToInt(recipes), id,
+		boolToInt(blog), boolToInt(about), boolToInt(gallery), boolToInt(recipes),
+		boolToInt(projects), id,
 	)
 	return err
 }

@@ -161,6 +161,28 @@ var migrations = []string{
 
 	// 13: add published flag to gallery_albums (default 1 = public)
 	`ALTER TABLE gallery_albums ADD COLUMN published INTEGER NOT NULL DEFAULT 1`,
+
+	// 14: per-user theme settings
+	`ALTER TABLE users ADD COLUMN theme_json TEXT NOT NULL DEFAULT '{}'`,
+
+	// 15: feature flag for projects
+	`ALTER TABLE users ADD COLUMN feature_projects INTEGER NOT NULL DEFAULT 0 CHECK(feature_projects IN (0,1))`,
+
+	// 16: projects table
+	`CREATE TABLE IF NOT EXISTS projects (
+		id            INTEGER PRIMARY KEY,
+		user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		title         TEXT    NOT NULL,
+		description   TEXT    NOT NULL DEFAULT '',
+		url           TEXT    NOT NULL DEFAULT '',
+		image_path    TEXT    NOT NULL DEFAULT '',
+		display_order INTEGER NOT NULL DEFAULT 0,
+		published     INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),
+		created_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+		updated_at    INTEGER NOT NULL DEFAULT (unixepoch())
+	)`,
+
+	`CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)`,
 }
 
 // migrate runs any migrations that have not yet been applied, in order.

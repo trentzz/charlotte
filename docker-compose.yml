@@ -1,0 +1,12 @@
+services:
+  charlotte:
+    build: .
+    ports:
+      - "9271:9271"
+    volumes:
+      - ./data:/data
+    environment:
+      PORT: "9271"
+      DATA_DIR: /data
+      BASE_DIR: /
+    restart: unless-stopped
