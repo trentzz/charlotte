@@ -10,6 +10,10 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder'
 import LibraryAddIcon from '@mui/icons-material/LibraryAdd'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import StarIcon from '@mui/icons-material/Star'
+import StarBorderIcon from '@mui/icons-material/StarBorder'
 import Masonry from 'react-masonry-css'
 import client from '../../api/client.js'
 import Lightbox from '../../components/Lightbox.jsx'
@@ -259,6 +263,25 @@ export default function AlbumView() {
     }
   }
 
+  async function handleTogglePublish() {
+    try {
+      const res = await client.patch(`/dashboard/gallery/albums/${id}/toggle`)
+      const published = res.data.published ?? !album.published
+      setAlbum((a) => ({ ...a, published }))
+    } catch {
+      setError('Failed to update publish status.')
+    }
+  }
+
+  async function handleSetDefault() {
+    try {
+      await client.patch(`/dashboard/gallery/albums/${id}/default`)
+      setAlbum((a) => ({ ...a, is_default: true }))
+    } catch {
+      setError('Failed to set default album.')
+    }
+  }
+
   async function handleRemoveFromAlbum() {
     if (!removeId) return
     setRemoving(true)
@@ -283,8 +306,30 @@ export default function AlbumView() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Typography variant="h5" fontWeight={700}>{album?.title || 'Album'}</Typography>
-        <Stack direction="row" spacing={1}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Typography variant="h5" fontWeight={700}>{album?.title || 'Album'}</Typography>
+          {album?.is_default && (
+            <Chip icon={<StarIcon fontSize="small" />} label="Default" size="small" color="primary" variant="outlined" />
+          )}
+          {album && !album.published && (
+            <Chip label="Unpublished" size="small" color="default" variant="outlined" />
+          )}
+        </Box>
+        <Stack direction="row" spacing={1} alignItems="center">
+          {album && (
+            <Tooltip title={album.published ? 'Unpublish album' : 'Publish album'}>
+              <IconButton size="small" onClick={handleTogglePublish}>
+                {album.published ? <VisibilityIcon /> : <VisibilityOffIcon />}
+              </IconButton>
+            </Tooltip>
+          )}
+          {album && !album.is_default && (
+            <Tooltip title="Set as default upload album">
+              <IconButton size="small" onClick={handleSetDefault}>
+                <StarBorderIcon />
+              </IconButton>
+            </Tooltip>
+          )}
           <Button
             variant="outlined"
             size="small"

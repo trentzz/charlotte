@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"net/http"
+	"os"
 )
 
 const (
@@ -23,12 +24,14 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 		token := csrfTokenFromRequest(r)
 		if token == "" {
 			token = generateCSRFToken()
+			secure := os.Getenv("CHARLOTTE_SECURE_COOKIES") == "true"
 			http.SetCookie(w, &http.Cookie{
 				Name:     csrfCookieName,
 				Value:    token,
 				Path:     "/",
 				HttpOnly: false, // JS does not need it; readable by forms via the cookie
 				SameSite: http.SameSiteLaxMode,
+				Secure:   secure,
 			})
 		}
 

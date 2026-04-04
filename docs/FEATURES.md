@@ -11,8 +11,9 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 ### Blog
 
 - Create, edit, and delete posts from the dashboard.
-- Markdown rendering with full GFM support: code blocks, tables, blockquotes, strikethrough, autolinks, footnotes.
-- Embed images in post body using standard markdown syntax: `![alt text](/uploads/{userID}/filename.jpg)`.
+- **WYSIWYG editor** (react-quill): supports headings, lists, blockquotes, code blocks, inline images, and links. No markdown syntax required.
+- **Image upload**: "Upload image" button in the editor uploads a file and inserts it into the post body at the cursor.
+- **Pick from gallery**: "Pick from gallery" button opens a picker to select an existing gallery photo and insert it into the post body. No re-upload needed.
 - Tag support (comma-separated).
 - Per-post visibility toggle (public / private draft).
 - **Inline editing**: owner can click Edit on the public post page and save directly without going to the dashboard.
@@ -27,7 +28,8 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 
 - Upload photos (JPEG, PNG, WebP, GIF) up to 10 MB each; up to 20 files per batch.
 - Photos belong to albums. A "General" album is created automatically for unassigned photos.
-- Per-album visibility toggle (public / private).
+- **Default album**: one album per user is marked as the default upload destination (star badge in the dashboard). Photos uploaded via blog image upload, or any upload that doesn't specify an album, go into this album. Set any album as default using the star button on the album card or inside the album view. The first album created for a user is automatically marked as the default. Migration 23.
+- Per-album visibility toggle (public / private). Toggle from the album card or the album view header (eye icon). Unpublished albums are hidden from the public gallery.
 - Album cover photo: set automatically on first upload; can be changed manually.
 - **Gallery home**: single top nav only, then a "Gallery" section title, album grid (no rounded corners) and a recent photos grid. Only top-level albums (no parent) appear here.
 - **Album page**: editorial, photography-first layout inspired by Sean Tucker's style. Centred title in the display font, muted photo count, optional italic description, then a full-width masonry photo grid (3 columns on desktop, 2 on tablet ≤900 px, 1 on mobile ≤600 px) with 10 px gap, original aspect ratios preserved, and no rounded corners. Back link at the bottom.
@@ -54,11 +56,18 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 
 ### Projects
 
-- Showcase portfolio items as cards with a title, description, external link, and optional image.
+- Showcase portfolio items with a title, short description, external link, cover image, and a rich long-form body.
 - Per-project visibility toggle (public / private).
 - Dashboard CRUD: create, edit, delete, publish/unpublish.
-- Shown as a responsive grid on the user home page (up to 6 recent) and on a dedicated `/u/{username}/projects/` page.
+- **Rich editor**: the dashboard project editor uses the same Quill WYSIWYG editor as blog posts for the long-form body. Supports headings, lists, blockquotes, code blocks, inline images (upload or pick from gallery), and links.
+- **Cover image**: pick from gallery (no direct upload to cover — upload to gallery first).
+- **Linked blog posts**: select related blog posts to attach to a project. They appear as a "Related posts" section on the public project page.
+- **Slug**: each project gets a URL-safe slug derived from the title on create. Regenerated when the title changes.
+- **Public project list**: responsive card grid at `/u/{username}/projects`. Each card links to the individual project page. Clicking a card navigates to the detail view.
+- **Public project detail**: `/u/{username}/projects/{slug}` — cover image (if set), title, short description, external link button, full rendered body HTML, and a "Related posts" section listing linked blog posts.
+- Shown as a responsive grid on the user home page (up to 6 recent) and on a dedicated projects list page.
 - Feature flag: enable or disable from the dashboard features page.
+- DB: `body TEXT NOT NULL DEFAULT ''` (migration 24), `slug TEXT NOT NULL DEFAULT ''` (migration 25), `project_post_links` join table (migration 26).
 
 ### Homepage grid builder
 
@@ -96,7 +105,7 @@ User public pages have **one nav bar only** — the sticky white top nav. No sec
 - **About**: plain link, no dropdown.
 - **Account icon** (top right, all logged-in users): dropdown with My Page, Dashboard, Admin (if applicable), Log out.
 - **All dropdowns open on click**, not on hover. Close on outside click or Escape.
-- **Nav font**: DM Serif Display, uppercase, bold. Size configurable via Appearance settings (10–20 px slider). The Account button matches this style in both ProfileLayout and SettingsLayout.
+- **Nav font**: Playfair Display (display font), uppercase, bold. Size configurable via Appearance settings (10–20 px slider). The Account button matches this style in both ProfileLayout and SettingsLayout.
 - **Nav item spacing**: 16 px gap between nav items (MUI `gap: 2`).
 - Charlotte branding appears only in the footer.
 
@@ -106,16 +115,19 @@ User public pages have **one nav bar only** — the sticky white top nav. No sec
 
 Each user can fully customise the visual style of their public pages from Dashboard → Appearance:
 
-- **Accent colour**: HSL sliders (hue 0–360, saturation 0–100, lightness 0–100).
-- **Background colour**: HSL sliders for the page background.
-- **Body font**: sans-serif (Inter, Lato, Source Sans Pro, Nunito, Open Sans, Roboto) and serif (EB Garamond, Cormorant Garamond, Libre Baskerville) options, grouped by type.
-- **Heading / display font**: DM Serif Display (default), Playfair Display, Cormorant Garamond, EB Garamond, Libre Baskerville, Inter.
+- **Accent colour**: HSL colour picker for light and dark mode.
+- **Background colour**: HSL colour picker for light and dark mode.
+- **Body text colour**: HSL colour picker for light and dark mode. Applied to `palette.text.primary` in the MUI theme.
+- **Heading text colour**: HSL colour picker for light and dark mode. Applied to h1–h6 typography variants.
+- **Body font**: serif and sans-serif options with font cards; supports any Google Fonts name via the "Other" field.
+- **Heading / display font**: Playfair Display (default), Cormorant Garamond, EB Garamond, Libre Baskerville, DM Serif Display, Inter.
+- **UI font**: used for menus, buttons, and labels (best kept as a sans-serif).
 - **Base font size**: slider 12–22 px.
 - **Nav label size**: slider 10–20 px.
-- Live preview swatch shows accent and background colours before saving.
-- Settings stored as JSON per user. Applied as CSS custom property overrides injected into `<head>` of every user page.
+- Colours are tabbed by mode (Light / Dark). Auto-saves 800 ms after the last change.
+- Settings stored as JSON per user in `theme_json`.
 
-Default theme: sage green accent, warm cream background, DM Serif Display headings, EB Garamond body font, 16 px base size, 13 px nav labels.
+Default theme: sage green accent, warm cream background, dark warm body text (HSL 220, 15, 20), near-black headings (HSL 220, 20, 10), Playfair Display display and body font, Inter UI font, 16 px base size, 13 px nav labels. Dark mode defaults: light grey body text (HSL 220, 15, 85), near-white headings (HSL 220, 10, 92).
 
 ---
 
@@ -126,11 +138,11 @@ Default theme: sage green accent, warm cream background, DM Serif Display headin
 - Profile editor: display name, bio, avatar, external links.
 - **Appearance editor**: accent colour, background colour, fonts, font size, nav label size (HSL sliders, live preview).
 - Feature toggles: Blog, About, Gallery, Recipes, Projects.
-- Blog manager: list, create, edit, delete posts; toggle visibility.
+- Blog manager: list, create, edit, delete posts; toggle visibility. Blog editor includes "Upload image" (uploads and inserts into body) and "Pick from gallery" (select an existing photo and insert).
 - About page editor (Quill rich text editor).
-- Gallery manager: upload photos, manage albums, set covers, toggle album visibility.
-- Recipes manager: list, create, edit, delete recipes; add/delete variations; toggle visibility.
-- Projects manager: list, create, edit, delete projects; toggle visibility.
+- Gallery manager: upload photos, manage albums, set covers, toggle album visibility, set default album.
+- Recipes manager: list, create, edit, delete recipes; add/delete variations; toggle visibility. Recipe photo section includes "Pick from gallery" to link an existing photo.
+- Projects manager: list, create, edit, delete projects; toggle visibility. Project image can be picked from gallery.
 
 ---
 
@@ -157,7 +169,7 @@ Default theme: sage green accent, warm cream background, DM Serif Display headin
 
 ## Design system
 
-- Typography: DM Serif Display for all h1–h5 headings and nav labels; EB Garamond for body text. Both configurable per user.
+- Typography: Playfair Display for all h1–h5 headings, nav labels, and body text by default; Inter for UI chrome. All configurable per user.
 - Colour palette: warm cream background, sage green accent, dark warm text — all overridable via the theme system.
 - Gallery and photo grids: no rounded corners (editorial/photography aesthetic). Project cards: rounded corners (card layout).
 - Layouts use an 8 px spacing grid and CSS custom properties throughout.
@@ -242,5 +254,4 @@ Output goes to `frontend/dist/`. The Go binary serves `frontend/dist/index.html`
 
 - [ ] Blog editor upgrade: replace react-quill with Tiptap for better image handling and a cleaner API.
 - [ ] Per-user colour scheme live preview on the public page (currently requires saving to see full effect).
-- [ ] Project image upload from the dashboard (currently projects only support a title, description, and URL).
 - [ ] Recipe attempt journal entry UI in the dashboard (API endpoints exist).

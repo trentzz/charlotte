@@ -81,6 +81,7 @@ export default function App() {
               <Route path="recipes" element={<RecipesIndex />} />
               <Route path="recipes/:slug" element={<RecipePost />} />
               <Route path="projects" element={<Projects />} />
+              <Route path="projects/:slug" element={<Projects />} />
             </Route>
 
             {/* Dashboard / settings routes */}

@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/trentzz/charlotte/internal/middleware"
 	"github.com/trentzz/charlotte/internal/models"
 	"github.com/trentzz/charlotte/internal/storage"
 )
@@ -39,9 +41,14 @@ func (a *App) AdminUserApprove(w http.ResponseWriter, r *http.Request) {
 
 // AdminUserSuspend handles POST /api/v1/admin/users/{id}/suspend.
 func (a *App) AdminUserSuspend(w http.ResponseWriter, r *http.Request) {
+	viewer := middleware.UserFromContext(r.Context())
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		a.respondError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	if id == viewer.ID {
+		a.respondError(w, http.StatusBadRequest, "cannot modify your own account")
 		return
 	}
 	if err := models.UpdateUserStatus(a.DB, id, models.StatusSuspended); err != nil {
@@ -53,9 +60,14 @@ func (a *App) AdminUserSuspend(w http.ResponseWriter, r *http.Request) {
 
 // AdminUserDelete handles DELETE /api/v1/admin/users/{id}.
 func (a *App) AdminUserDelete(w http.ResponseWriter, r *http.Request) {
+	viewer := middleware.UserFromContext(r.Context())
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		a.respondError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	if id == viewer.ID {
+		a.respondError(w, http.StatusBadRequest, "cannot modify your own account")
 		return
 	}
 	if err := models.DeleteUser(a.DB, id); err != nil {
@@ -67,9 +79,24 @@ func (a *App) AdminUserDelete(w http.ResponseWriter, r *http.Request) {
 
 // AdminContent handles GET /api/v1/admin/content — all content across users.
 func (a *App) AdminContent(w http.ResponseWriter, r *http.Request) {
-	posts, _ := models.ListAllPosts(a.DB)
-	photos, _ := models.ListAllPhotos(a.DB)
-	recipes, _ := models.ListAllRecipes(a.DB)
+	posts, err := models.ListAllPosts(a.DB)
+	if err != nil {
+		log.Printf("admin content: list posts: %v", err)
+		a.internalError(w, r, err)
+		return
+	}
+	photos, err := models.ListAllPhotos(a.DB)
+	if err != nil {
+		log.Printf("admin content: list photos: %v", err)
+		a.internalError(w, r, err)
+		return
+	}
+	recipes, err := models.ListAllRecipes(a.DB)
+	if err != nil {
+		log.Printf("admin content: list recipes: %v", err)
+		a.internalError(w, r, err)
+		return
+	}
 	a.respondJSON(w, http.StatusOK, map[string]any{
 		"posts":   toPostList(posts),
 		"photos":  toPhotoList(photos),
@@ -79,14 +106,25 @@ func (a *App) AdminContent(w http.ResponseWriter, r *http.Request) {
 
 // AdminPostDelete handles DELETE /api/v1/admin/content/posts/{id}.
 func (a *App) AdminPostDelete(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	_ = models.DeletePost(a.DB, id)
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		a.respondError(w, http.StatusNotFound, "post not found")
+		return
+	}
+	if err := models.DeletePost(a.DB, id); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
 	a.respondJSON(w, http.StatusOK, map[string]string{"message": "post deleted"})
 }
 
 // AdminPhotoDelete handles DELETE /api/v1/admin/content/photos/{id}.
 func (a *App) AdminPhotoDelete(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		a.respondError(w, http.StatusNotFound, "photo not found")
+		return
+	}
 	deleted, err := models.DeletePhoto(a.DB, id)
 	if err == nil && deleted != nil {
 		_ = storage.DeleteUpload(a.DataDir, deleted.UserID, deleted.Filename)
@@ -96,8 +134,15 @@ func (a *App) AdminPhotoDelete(w http.ResponseWriter, r *http.Request) {
 
 // AdminRecipeDelete handles DELETE /api/v1/admin/content/recipes/{id}.
 func (a *App) AdminRecipeDelete(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	_ = models.DeleteRecipe(a.DB, id)
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		a.respondError(w, http.StatusNotFound, "recipe not found")
+		return
+	}
+	if err := models.DeleteRecipe(a.DB, id); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
 	a.respondJSON(w, http.StatusOK, map[string]string{"message": "recipe deleted"})
 }
 

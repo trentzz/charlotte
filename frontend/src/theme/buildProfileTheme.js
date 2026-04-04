@@ -23,6 +23,10 @@ function hslToHex(h, s, l) {
  *   bg_h, bg_s, bg_l,
  *   dark_accent_h, dark_accent_s, dark_accent_l,
  *   dark_bg_h, dark_bg_s, dark_bg_l,
+ *   text_h, text_s, text_l,
+ *   heading_h, heading_s, heading_l,
+ *   dark_text_h, dark_text_s, dark_text_l,
+ *   dark_heading_h, dark_heading_s, dark_heading_l,
  *   font_body, font_display, font_ui,
  *   font_size, nav_font_size
  * }
@@ -50,6 +54,22 @@ export default function buildProfileTheme(userTheme, mode = 'light') {
   const darkBgS = t.dark_bg_s ?? 15
   const darkBgL = t.dark_bg_l ?? 12
 
+  // Text colours — light mode
+  const textH = t.text_h ?? 220
+  const textS = t.text_s ?? 15
+  const textL = t.text_l ?? 20
+  const headingH = t.heading_h ?? 220
+  const headingS = t.heading_s ?? 20
+  const headingL = t.heading_l ?? 10
+
+  // Text colours — dark mode
+  const darkTextH = t.dark_text_h ?? 220
+  const darkTextS = t.dark_text_s ?? 15
+  const darkTextL = t.dark_text_l ?? 85
+  const darkHeadingH = t.dark_heading_h ?? 220
+  const darkHeadingS = t.dark_heading_s ?? 10
+  const darkHeadingL = t.dark_heading_l ?? 92
+
   const usedAccentH = dark ? darkAccentH : accentH
   const usedAccentS = dark ? darkAccentS : accentS
   const usedAccentL = dark ? darkAccentL : accentL
@@ -65,6 +85,18 @@ export default function buildProfileTheme(userTheme, mode = 'light') {
     : hslToHex(usedBgH, Math.max(usedBgS - 10, 0), Math.min(usedBgL + 2, 100))
   const accentDark = hslToHex(usedAccentH, usedAccentS, Math.max(usedAccentL - 15, 10))
   const accentLight = hslToHex(usedAccentH, usedAccentS, Math.min(usedAccentL + 15, 95))
+
+  // Resolved text and heading colours for the active mode.
+  const textColour = hslToHex(
+    dark ? darkTextH : textH,
+    dark ? darkTextS : textS,
+    dark ? darkTextL : textL,
+  )
+  const headingColour = hslToHex(
+    dark ? darkHeadingH : headingH,
+    dark ? darkHeadingS : headingS,
+    dark ? darkHeadingL : headingL,
+  )
 
   const fontBody = t.font_body || 'Playfair Display'
   const fontDisplay = t.font_display || 'Playfair Display'
@@ -88,6 +120,9 @@ export default function buildProfileTheme(userTheme, mode = 'light') {
         default: bg,
         paper,
       },
+      text: {
+        primary: textColour,
+      },
     },
     typography: {
       fontSize,
@@ -96,13 +131,13 @@ export default function buildProfileTheme(userTheme, mode = 'light') {
       // Reading content uses the body font.
       body1: { fontFamily: bodyStack },
       body2: { fontFamily: bodyStack },
-      // Headings use the display font.
-      h1: { fontFamily: displayStack },
-      h2: { fontFamily: displayStack },
-      h3: { fontFamily: displayStack },
-      h4: { fontFamily: displayStack },
-      h5: { fontFamily: displayStack },
-      h6: { fontFamily: displayStack },
+      // Headings use the display font and heading colour.
+      h1: { fontFamily: displayStack, color: headingColour },
+      h2: { fontFamily: displayStack, color: headingColour },
+      h3: { fontFamily: displayStack, color: headingColour },
+      h4: { fontFamily: displayStack, color: headingColour },
+      h5: { fontFamily: displayStack, color: headingColour },
+      h6: { fontFamily: displayStack, color: headingColour },
       // UI variants — explicitly set so overrides to fontFamily do not bleed through.
       subtitle1: { fontFamily: uiStack },
       subtitle2: { fontFamily: uiStack },

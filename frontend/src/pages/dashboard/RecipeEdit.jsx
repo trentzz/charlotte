@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box, Typography, TextField, Button, Alert, CircularProgress,
   Stack, Divider, IconButton, Paper, List, ListItem, ListItemText,
-  ListItemSecondaryAction,
+  ListItemSecondaryAction, Dialog, DialogTitle, DialogContent, DialogActions,
+  Tooltip, Checkbox,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import {
   DndContext,
   closestCenter,
@@ -274,6 +276,91 @@ function VariationEditor({ variation, index, totalIngredients, totalSteps, onCha
   )
 }
 
+// ── Gallery photo picker ───────────────────────────────────────────────────────
+
+// GalleryPhotoPicker lets the user select an existing photo from their gallery.
+// onPick receives the selected photo object.
+function GalleryPhotoPicker({ open, onClose, onPick }) {
+  const [photos, setPhotos] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [selected, setSelected] = useState(null)
+
+  useEffect(() => {
+    if (!open) return
+    setLoading(true)
+    setSelected(null)
+    setError(null)
+    client.get('/dashboard/gallery/photos')
+      .then((res) => setPhotos(res.data.photos || []))
+      .catch(() => setError('Failed to load photos.'))
+      .finally(() => setLoading(false))
+  }, [open])
+
+  function handleConfirm() {
+    if (!selected) return
+    onPick(selected)
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>Pick a photo from your gallery</DialogTitle>
+      <DialogContent>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {loading ? (
+          <CircularProgress />
+        ) : photos.length === 0 ? (
+          <Typography color="text.secondary">No photos found.</Typography>
+        ) : (
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 1, mt: 1 }}>
+            {photos.map((photo) => {
+              const src = (photo.url || '').startsWith('/') ? photo.url : `/${photo.url}`
+              const isSelected = selected?.id === photo.id
+              return (
+                <Tooltip key={photo.id} title={photo.caption || 'Click to select'}>
+                  <Box
+                    onClick={() => setSelected(photo)}
+                    sx={{
+                      position: 'relative',
+                      cursor: 'pointer',
+                      border: isSelected ? '2px solid' : '2px solid transparent',
+                      borderColor: isSelected ? 'primary.main' : 'transparent',
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={src}
+                      alt={photo.caption || ''}
+                      sx={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
+                    />
+                    {isSelected && (
+                      <Checkbox
+                        checked
+                        size="small"
+                        sx={{
+                          position: 'absolute', top: 2, right: 2,
+                          bgcolor: 'white', borderRadius: '50%', p: 0.25,
+                        }}
+                      />
+                    )}
+                  </Box>
+                </Tooltip>
+              )
+            })}
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={handleConfirm} disabled={!selected}>
+          Use photo
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
 // ── Main editor ────────────────────────────────────────────────────────────────
 
 export default function RecipeEdit() {
@@ -297,6 +384,7 @@ export default function RecipeEdit() {
   const [photoUploading, setPhotoUploading] = useState(false)
   const [photoError, setPhotoError] = useState(null)
   const photoInputRef = useRef(null)
+  const [galleryPickerOpen, setGalleryPickerOpen] = useState(false)
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -429,6 +517,30 @@ export default function RecipeEdit() {
       setPhotos((prev) => prev.filter((p) => p.id !== photoId))
     } catch {
       setPhotoError('Failed to delete photo.')
+    }
+  }
+
+  // Add a gallery photo to the recipe's photo list without re-uploading.
+  async function handleGalleryPick(photo) {
+    setPhotoError(null)
+    try {
+      // Re-use the recipe photo upload endpoint with the gallery photo URL.
+      // We convert it to a FormData upload using the photo's URL as source — instead,
+      // we store the gallery URL directly in the photos list for display.
+      // The recipe photo system stores separate recipe_photos records, so we
+      // fetch the file from the gallery URL and upload it as a recipe photo.
+      const response = await fetch(photo.url.startsWith('/') ? photo.url : `/${photo.url}`)
+      const blob = await response.blob()
+      const file = new File([blob], photo.url.split('/').pop() || 'photo.jpg', { type: blob.type || 'image/jpeg' })
+      const fd = new FormData()
+      fd.append('photos', file)
+      const res = await client.post(`/dashboard/recipes/${id}/photos`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      const uploaded = res.data?.data?.uploaded || []
+      setPhotos((prev) => [...prev, ...uploaded])
+    } catch {
+      setPhotoError('Failed to link gallery photo.')
     }
   }
 
@@ -582,14 +694,24 @@ export default function RecipeEdit() {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="subtitle1" fontWeight={600}>Photos</Typography>
-              <Button
-                size="small"
-                startIcon={<AddPhotoAlternateIcon />}
-                onClick={() => photoInputRef.current?.click()}
-                disabled={photoUploading}
-              >
-                {photoUploading ? 'Uploading…' : 'Add photos'}
-              </Button>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="small"
+                  startIcon={<AddPhotoAlternateIcon />}
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={photoUploading}
+                >
+                  {photoUploading ? 'Uploading…' : 'Upload'}
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<PhotoLibraryIcon />}
+                  onClick={() => setGalleryPickerOpen(true)}
+                  disabled={photoUploading}
+                >
+                  Pick from gallery
+                </Button>
+              </Stack>
               <input
                 ref={photoInputRef}
                 type="file"
@@ -687,6 +809,12 @@ export default function RecipeEdit() {
           </Button>
         </Box>
       </Stack>
+
+      <GalleryPhotoPicker
+        open={galleryPickerOpen}
+        onClose={() => setGalleryPickerOpen(false)}
+        onPick={handleGalleryPick}
+      />
     </Box>
   )
 }

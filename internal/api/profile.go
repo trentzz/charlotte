@@ -275,15 +275,19 @@ func toRecipeList(recipes []*models.Recipe) []recipeJSON {
 }
 
 type projectJSON struct {
-	ID           int64  `json:"id"`
-	Title        string `json:"title"`
-	Description  string `json:"description"`
-	URL          string `json:"url"`
-	ImageURL     string `json:"image_url"`
-	Published    bool   `json:"published"`
-	DisplayOrder int    `json:"display_order"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	ID           int64      `json:"id"`
+	Title        string     `json:"title"`
+	Slug         string     `json:"slug"`
+	Description  string     `json:"description"`
+	URL          string     `json:"url"`
+	ImageURL     string     `json:"image_url"`
+	Body         string     `json:"body"`
+	BodyHTML     string     `json:"body_html"`
+	LinkedPosts  []postJSON `json:"linked_posts"`
+	Published    bool       `json:"published"`
+	DisplayOrder int        `json:"display_order"`
+	CreatedAt    string     `json:"created_at"`
+	UpdatedAt    string     `json:"updated_at"`
 }
 
 func toProjectJSON(p *models.Project) projectJSON {
@@ -291,12 +295,20 @@ func toProjectJSON(p *models.Project) projectJSON {
 	if p.ImagePath != "" {
 		imageURL = photoURL(p.UserID, p.ImagePath)
 	}
+	linked := make([]postJSON, 0, len(p.LinkedPosts))
+	for _, post := range p.LinkedPosts {
+		linked = append(linked, toPostJSON(post))
+	}
 	return projectJSON{
 		ID:           p.ID,
 		Title:        p.Title,
+		Slug:         p.Slug,
 		Description:  p.Description,
 		URL:          p.URL,
 		ImageURL:     imageURL,
+		Body:         p.Body,
+		BodyHTML:     renderContent(p.Body),
+		LinkedPosts:  linked,
 		Published:    p.Published,
 		DisplayOrder: p.DisplayOrder,
 		CreatedAt:    p.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
@@ -319,6 +331,7 @@ type albumJSON struct {
 	Slug        string      `json:"slug"`
 	Description string      `json:"description"`
 	Published   bool        `json:"published"`
+	IsDefault   bool        `json:"is_default"`
 	CoverPhoto  *photoJSON  `json:"cover_photo"`
 	PhotoCount  int         `json:"photo_count"`
 	SubAlbums   []albumJSON `json:"sub_albums,omitempty"`
@@ -339,6 +352,7 @@ func toAlbumJSON(a *models.Album) albumJSON {
 		Slug:        a.Slug,
 		Description: a.Description,
 		Published:   a.Published,
+		IsDefault:   a.IsDefault,
 		CoverPhoto:  cover,
 		PhotoCount:  a.PhotoCount,
 		CreatedAt:   a.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),

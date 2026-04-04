@@ -4,11 +4,16 @@ import {
   Box, Typography, Button, Grid, Card, CardContent, CardMedia,
   CardActions, IconButton, CircularProgress, Alert, Dialog,
   DialogTitle, DialogContent, DialogActions, TextField, Stack,
+  Chip, Tooltip, Switch, FormControlLabel,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import StarIcon from '@mui/icons-material/Star'
+import StarBorderIcon from '@mui/icons-material/StarBorder'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import client from '../../api/client.js'
 
 function AlbumForm({ initial, onSave, onCancel, saving }) {
@@ -91,6 +96,26 @@ export default function Gallery() {
     }
   }
 
+  async function handleTogglePublish(album) {
+    try {
+      const res = await client.patch(`/dashboard/gallery/albums/${album.id}/toggle`)
+      const published = res.data.published ?? !album.published
+      setAlbums((a) => a.map((al) => al.id === album.id ? { ...al, published } : al))
+    } catch {
+      setError('Failed to update publish status.')
+    }
+  }
+
+  async function handleSetDefault(album) {
+    try {
+      await client.patch(`/dashboard/gallery/albums/${album.id}/default`)
+      // Mark the new default and clear the old one.
+      setAlbums((a) => a.map((al) => ({ ...al, is_default: al.id === album.id })))
+    } catch {
+      setError('Failed to set default album.')
+    }
+  }
+
   if (loading) return <CircularProgress />
 
   return (
@@ -116,9 +141,7 @@ export default function Gallery() {
       ) : (
         <Grid container spacing={3}>
           {albums.map((album) => {
-            const cover = album.cover_path
-              ? (album.cover_path.startsWith('/') ? album.cover_path : `/${album.cover_path}`)
-              : null
+            const coverUrl = album.cover_photo?.url || null
 
             if (editAlbum?.id === album.id) {
               return (
@@ -138,11 +161,25 @@ export default function Gallery() {
             return (
               <Grid item xs={12} sm={6} md={4} key={album.id}>
                 <Card elevation={1}>
-                  {cover && (
-                    <CardMedia component="img" height={160} image={cover} alt={album.title} sx={{ borderRadius: 0 }} />
+                  {coverUrl && (
+                    <CardMedia component="img" height={160} image={coverUrl} alt={album.title} sx={{ borderRadius: 0 }} />
                   )}
                   <CardContent>
-                    <Typography fontWeight={600}>{album.title}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
+                      <Typography fontWeight={600}>{album.title}</Typography>
+                      {album.is_default && (
+                        <Chip
+                          icon={<StarIcon fontSize="small" />}
+                          label="Default"
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      )}
+                      {!album.published && (
+                        <Chip label="Unpublished" size="small" color="default" variant="outlined" />
+                      )}
+                    </Box>
                     {album.description && (
                       <Typography variant="body2" color="text.secondary">{album.description}</Typography>
                     )}
@@ -151,20 +188,46 @@ export default function Gallery() {
                     </Typography>
                   </CardContent>
                   <CardActions>
-                    <IconButton
-                      component={RouterLink}
-                      to={`/dashboard/gallery/albums/${album.id}`}
-                      size="small"
-                      title="Open album"
-                    >
-                      <FolderOpenIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => setEditAlbum(album)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" color="error" onClick={() => setDeleteId(album.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    <Tooltip title="Open album">
+                      <IconButton
+                        component={RouterLink}
+                        to={`/dashboard/gallery/albums/${album.id}`}
+                        size="small"
+                      >
+                        <FolderOpenIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Edit album">
+                      <IconButton size="small" onClick={() => setEditAlbum(album)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={album.published ? 'Unpublish album' : 'Publish album'}>
+                      <IconButton size="small" onClick={() => handleTogglePublish(album)}>
+                        {album.published
+                          ? <VisibilityIcon fontSize="small" />
+                          : <VisibilityOffIcon fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={album.is_default ? 'Default upload album' : 'Set as default upload album'}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleSetDefault(album)}
+                          disabled={album.is_default}
+                          color={album.is_default ? 'primary' : 'default'}
+                        >
+                          {album.is_default
+                            ? <StarIcon fontSize="small" />
+                            : <StarBorderIcon fontSize="small" />}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="Delete album">
+                      <IconButton size="small" color="error" onClick={() => setDeleteId(album.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </CardActions>
                 </Card>
               </Grid>

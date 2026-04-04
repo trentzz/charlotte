@@ -109,6 +109,10 @@ func (a *App) DashRecipeUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	recipe.Title = strings.TrimSpace(body.Title)
+	if recipe.Title == "" {
+		a.respondError(w, http.StatusBadRequest, "title is required")
+		return
+	}
 	recipe.Description = sanitizeContent(body.Description)
 	recipe.Ingredients = parseStringOrArray(body.Ingredients)
 	recipe.Steps = parseStringOrArray(body.Steps)
@@ -127,7 +131,14 @@ func (a *App) DashRecipeUpdate(w http.ResponseWriter, r *http.Request) {
 		a.internalError(w, r, err)
 		return
 	}
-	a.respondJSON(w, http.StatusOK, toRecipeJSON(recipe))
+
+	// Re-fetch so updated_at and any DB-side changes are reflected in the response.
+	updated, err := models.GetRecipeByID(a.DB, recipe.ID)
+	if err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, toRecipeJSON(updated))
 }
 
 // DashRecipeToggle handles PATCH /api/v1/dashboard/recipes/{id}/toggle — flip published.
@@ -196,7 +207,8 @@ func (a *App) DashAttemptAdd(w http.ResponseWriter, r *http.Request) {
 func (a *App) DashAttemptDelete(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 	// Verify the recipe is owned by the user.
-	if _, ok := a.getOwnedRecipe(w, r, user); !ok {
+	recipe, ok := a.getOwnedRecipe(w, r, user)
+	if !ok {
 		return
 	}
 	aid, err := strconv.ParseInt(r.PathValue("aid"), 10, 64)
@@ -204,7 +216,8 @@ func (a *App) DashAttemptDelete(w http.ResponseWriter, r *http.Request) {
 		a.respondError(w, http.StatusNotFound, "attempt not found")
 		return
 	}
-	if err := models.DeleteAttempt(a.DB, aid); err != nil {
+	// Pass recipeID so the DELETE only succeeds if the attempt belongs to this recipe.
+	if err := models.DeleteAttempt(a.DB, aid, recipe.ID); err != nil {
 		a.internalError(w, r, err)
 		return
 	}

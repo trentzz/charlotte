@@ -194,6 +194,13 @@ function ProfileLayoutInner({ username, profile, navData }) {
 
               {/* Nav items */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Button
+                  component={RouterLink}
+                  to={`/u/${username}`}
+                  sx={{ color: 'inherit', ...navLabelStyle }}
+                >
+                  Home
+                </Button>
                 {features.blog === true && (
                   <NavDropdown
                     label="Blog"

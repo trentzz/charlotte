@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/trentzz/charlotte/internal/middleware"
 	"github.com/trentzz/charlotte/internal/models"
@@ -51,6 +52,14 @@ func (a *App) DashHomepageSave(w http.ResponseWriter, r *http.Request) {
 	layout := &models.HomepageLayout{Widgets: body.Widgets}
 	if layout.Widgets == nil {
 		layout.Widgets = []models.Widget{}
+	}
+
+	// Strip widget URLs that are not http/https to prevent javascript: injection.
+	for i := range layout.Widgets {
+		u := layout.Widgets[i].URL
+		if u != "" && !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+			layout.Widgets[i].URL = ""
+		}
 	}
 
 	if err := models.SaveHomepageLayout(a.DB, user.ID, layout); err != nil {

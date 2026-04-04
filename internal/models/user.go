@@ -33,45 +33,69 @@ type UserLink struct {
 
 // UserTheme holds the visual configuration for a user's public pages.
 type UserTheme struct {
-	AccentH     int    `json:"accent_h"`     // hue 0-360, default 150 (sage green)
-	AccentS     int    `json:"accent_s"`     // saturation 0-100, default 20
-	AccentL     int    `json:"accent_l"`     // lightness 0-100, default 63
-	BgH         int    `json:"bg_h"`         // background hue, default 35
-	BgS         int    `json:"bg_s"`         // background saturation, default 60
-	BgL         int    `json:"bg_l"`         // background lightness, default 97
-	DarkAccentH int    `json:"dark_accent_h"` // dark mode accent hue, default 150
-	DarkAccentS int    `json:"dark_accent_s"` // dark mode accent saturation, default 30
-	DarkAccentL int    `json:"dark_accent_l"` // dark mode accent lightness, default 55
-	DarkBgH     int    `json:"dark_bg_h"`     // dark mode background hue, default 220
-	DarkBgS     int    `json:"dark_bg_s"`     // dark mode background saturation, default 15
-	DarkBgL     int    `json:"dark_bg_l"`     // dark mode background lightness, default 12
-	FontBody    string `json:"font_body"`     // body font, default "EB Garamond"
-	FontDisplay string `json:"font_display"`  // heading font, default "DM Serif Display"
-	FontUI      string `json:"font_ui"`       // UI/interface font (menus, buttons, labels), default "Inter"
-	FontSize    int    `json:"font_size"`     // base font size px, default 16
-	NavFontSize int    `json:"nav_font_size"` // nav label size px, default 13
+	AccentH      int    `json:"accent_h"`      // hue 0-360, default 150 (sage green)
+	AccentS      int    `json:"accent_s"`      // saturation 0-100, default 20
+	AccentL      int    `json:"accent_l"`      // lightness 0-100, default 63
+	BgH          int    `json:"bg_h"`          // background hue, default 35
+	BgS          int    `json:"bg_s"`          // background saturation, default 60
+	BgL          int    `json:"bg_l"`          // background lightness, default 97
+	DarkAccentH  int    `json:"dark_accent_h"` // dark mode accent hue, default 150
+	DarkAccentS  int    `json:"dark_accent_s"` // dark mode accent saturation, default 30
+	DarkAccentL  int    `json:"dark_accent_l"` // dark mode accent lightness, default 55
+	DarkBgH      int    `json:"dark_bg_h"`     // dark mode background hue, default 220
+	DarkBgS      int    `json:"dark_bg_s"`     // dark mode background saturation, default 15
+	DarkBgL      int    `json:"dark_bg_l"`     // dark mode background lightness, default 12
+	TextH        int    `json:"text_h"`        // body text hue, default 220
+	TextS        int    `json:"text_s"`        // body text saturation, default 15
+	TextL        int    `json:"text_l"`        // body text lightness, default 20
+	HeadingH     int    `json:"heading_h"`     // heading text hue, default 220
+	HeadingS     int    `json:"heading_s"`     // heading text saturation, default 20
+	HeadingL     int    `json:"heading_l"`     // heading text lightness, default 10
+	DarkTextH    int    `json:"dark_text_h"`   // dark mode body text hue, default 220
+	DarkTextS    int    `json:"dark_text_s"`   // dark mode body text saturation, default 15
+	DarkTextL    int    `json:"dark_text_l"`   // dark mode body text lightness, default 85
+	DarkHeadingH int    `json:"dark_heading_h"` // dark mode heading text hue, default 220
+	DarkHeadingS int    `json:"dark_heading_s"` // dark mode heading text saturation, default 10
+	DarkHeadingL int    `json:"dark_heading_l"` // dark mode heading text lightness, default 92
+	FontBody     string `json:"font_body"`      // body font, default "Playfair Display"
+	FontDisplay  string `json:"font_display"`   // heading font, default "Playfair Display"
+	FontUI       string `json:"font_ui"`        // UI/interface font (menus, buttons, labels), default "Inter"
+	FontSize     int    `json:"font_size"`      // base font size px, default 16
+	NavFontSize  int    `json:"nav_font_size"`  // nav label size px, default 13
 }
 
 // DefaultTheme returns the default visual theme matching the site's built-in palette.
 func DefaultTheme() UserTheme {
 	return UserTheme{
-		AccentH:     150,
-		AccentS:     20,
-		AccentL:     63,
-		BgH:         35,
-		BgS:         60,
-		BgL:         97,
-		DarkAccentH: 150,
-		DarkAccentS: 30,
-		DarkAccentL: 55,
-		DarkBgH:     220,
-		DarkBgS:     15,
-		DarkBgL:     12,
-		FontBody:    "Playfair Display",
-		FontDisplay: "Playfair Display",
-		FontUI:      "Inter",
-		FontSize:    16,
-		NavFontSize: 13,
+		AccentH:      150,
+		AccentS:      20,
+		AccentL:      63,
+		BgH:          35,
+		BgS:          60,
+		BgL:          97,
+		DarkAccentH:  150,
+		DarkAccentS:  30,
+		DarkAccentL:  55,
+		DarkBgH:      220,
+		DarkBgS:      15,
+		DarkBgL:      12,
+		TextH:        220,
+		TextS:        15,
+		TextL:        20,
+		HeadingH:     220,
+		HeadingS:     20,
+		HeadingL:     10,
+		DarkTextH:    220,
+		DarkTextS:    15,
+		DarkTextL:    85,
+		DarkHeadingH: 220,
+		DarkHeadingS: 10,
+		DarkHeadingL: 92,
+		FontBody:     "Playfair Display",
+		FontDisplay:  "Playfair Display",
+		FontUI:       "Inter",
+		FontSize:     16,
+		NavFontSize:  13,
 	}
 }
 

@@ -25,6 +25,18 @@ const DEFAULT_THEME = {
   dark_bg_h: 220,
   dark_bg_s: 15,
   dark_bg_l: 12,
+  text_h: 220,
+  text_s: 15,
+  text_l: 20,
+  heading_h: 220,
+  heading_s: 20,
+  heading_l: 10,
+  dark_text_h: 220,
+  dark_text_s: 15,
+  dark_text_l: 85,
+  dark_heading_h: 220,
+  dark_heading_s: 10,
+  dark_heading_l: 92,
   font_body: 'Playfair Display',
   font_display: 'Playfair Display',
   font_ui: 'Inter',
@@ -301,6 +313,22 @@ export default function Appearance() {
     setTheme((t) => ({ ...t, dark_bg_h: h, dark_bg_s: s, dark_bg_l: l }))
   }
 
+  function handleTextChange({ h, s, l }) {
+    setTheme((t) => ({ ...t, text_h: h, text_s: s, text_l: l }))
+  }
+
+  function handleHeadingChange({ h, s, l }) {
+    setTheme((t) => ({ ...t, heading_h: h, heading_s: s, heading_l: l }))
+  }
+
+  function handleDarkTextChange({ h, s, l }) {
+    setTheme((t) => ({ ...t, dark_text_h: h, dark_text_s: s, dark_text_l: l }))
+  }
+
+  function handleDarkHeadingChange({ h, s, l }) {
+    setTheme((t) => ({ ...t, dark_heading_h: h, dark_heading_s: s, dark_heading_l: l }))
+  }
+
   if (loading) return <CircularProgress />
 
   return (
@@ -342,6 +370,20 @@ export default function Appearance() {
             l={theme.bg_l}
             onChange={handleBgChange}
           />
+          <ColourPickerBlock
+            label="Body text colour"
+            h={theme.text_h}
+            s={theme.text_s}
+            l={theme.text_l}
+            onChange={handleTextChange}
+          />
+          <ColourPickerBlock
+            label="Heading text colour"
+            h={theme.heading_h}
+            s={theme.heading_s}
+            l={theme.heading_l}
+            onChange={handleHeadingChange}
+          />
         </Box>
       )}
 
@@ -360,6 +402,20 @@ export default function Appearance() {
             s={theme.dark_bg_s}
             l={theme.dark_bg_l}
             onChange={handleDarkBgChange}
+          />
+          <ColourPickerBlock
+            label="Dark body text colour"
+            h={theme.dark_text_h}
+            s={theme.dark_text_s}
+            l={theme.dark_text_l}
+            onChange={handleDarkTextChange}
+          />
+          <ColourPickerBlock
+            label="Dark heading text colour"
+            h={theme.dark_heading_h}
+            s={theme.dark_heading_s}
+            l={theme.dark_heading_l}
+            onChange={handleDarkHeadingChange}
           />
         </Box>
       )}

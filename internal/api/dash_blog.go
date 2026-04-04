@@ -111,6 +111,10 @@ func (a *App) DashBlogUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post.Title = strings.TrimSpace(body.Title)
+	if post.Title == "" {
+		a.respondError(w, http.StatusBadRequest, "title is required")
+		return
+	}
 	post.Body = sanitizeContent(body.Body)
 	post.Published = body.Published
 
@@ -129,7 +133,14 @@ func (a *App) DashBlogUpdate(w http.ResponseWriter, r *http.Request) {
 		a.internalError(w, r, err)
 		return
 	}
-	a.respondJSON(w, http.StatusOK, toPostJSON(post))
+
+	// Re-fetch so updated_at and any DB-side changes are reflected in the response.
+	updated, err := models.GetPostByID(a.DB, post.ID)
+	if err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, toPostJSON(updated))
 }
 
 // DashBlogToggle handles PATCH /api/v1/dashboard/blog/{id}/toggle — flip published.
@@ -178,8 +189,8 @@ func (a *App) DashBlogImageUpload(w http.ResponseWriter, r *http.Request) {
 		a.respondError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
-	// Record in the general album so it shows in the gallery too.
-	album, err := models.GetOrCreateGeneralAlbum(a.DB, user.ID)
+	// Record in the default upload album so it shows in the gallery.
+	album, err := models.GetDefaultAlbum(a.DB, user.ID)
 	if err == nil {
 		photoID, _ := models.CreatePhoto(a.DB, &models.Photo{
 			UserID:    user.ID,
@@ -190,6 +201,7 @@ func (a *App) DashBlogImageUpload(w http.ResponseWriter, r *http.Request) {
 			Width:     result.Width,
 			Height:    result.Height,
 		})
+		_ = models.AddPhotoToAlbum(a.DB, album.ID, photoID)
 		_ = models.SetAlbumCoverIfNone(a.DB, album.ID, photoID)
 	}
 	a.respondJSON(w, http.StatusOK, map[string]string{

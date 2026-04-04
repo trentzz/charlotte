@@ -3,6 +3,7 @@ package middleware
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -83,22 +84,24 @@ func (rl *RateLimiter) cleanup() {
 	}
 }
 
-// clientIP extracts the client IP address from the request.
-// It respects X-Forwarded-For when running behind a reverse proxy.
+// clientIP extracts the real client IP from the request.
+// X-Forwarded-For is only trusted when the direct connection comes from
+// localhost, meaning a reverse proxy on the same host set the header.
+// All other connections use RemoteAddr to prevent IP spoofing.
 func clientIP(r *http.Request) string {
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		// Use only the first (leftmost) address.
-		for i := 0; i < len(fwd); i++ {
-			if fwd[i] == ',' {
-				fwd = fwd[:i]
-				break
-			}
-		}
-		return fwd
-	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	// Only trust X-Forwarded-For from a local reverse proxy.
+	if host == "127.0.0.1" || host == "::1" {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			first := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
+			if ip, _, err := net.SplitHostPort(first + ":0"); err == nil {
+				return ip
+			}
+			return first
+		}
 	}
 	return host
 }

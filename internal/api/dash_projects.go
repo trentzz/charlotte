@@ -8,6 +8,7 @@ import (
 
 	"github.com/trentzz/charlotte/internal/middleware"
 	"github.com/trentzz/charlotte/internal/models"
+	"github.com/trentzz/charlotte/internal/slug"
 	"github.com/trentzz/charlotte/internal/storage"
 )
 
@@ -27,10 +28,13 @@ func (a *App) DashProjectCreate(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 
 	var body struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		URL         string `json:"url"`
-		Published   bool   `json:"published"`
+		Title         string  `json:"title"`
+		Description   string  `json:"description"`
+		URL           string  `json:"url"`
+		ImagePath     string  `json:"image_path"`
+		Body          string  `json:"body"`
+		LinkedPostIDs []int64 `json:"linked_post_ids"`
+		Published     bool    `json:"published"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		a.respondError(w, http.StatusBadRequest, "invalid request body")
@@ -43,17 +47,31 @@ func (a *App) DashProjectCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	imagePath := normaliseImagePath(body.ImagePath, user.ID)
+	slug := makeUniqueSlug(a.DB, "projects", user.ID, 0, slug.Make(title))
+
 	id, err := models.CreateProject(a.DB, &models.Project{
 		UserID:      user.ID,
 		Title:       title,
+		Slug:        slug,
 		Description: strings.TrimSpace(body.Description),
 		URL:         strings.TrimSpace(body.URL),
+		ImagePath:   imagePath,
+		Body:        body.Body,
 		Published:   body.Published,
 	})
 	if err != nil {
 		a.internalError(w, r, err)
 		return
 	}
+
+	if len(body.LinkedPostIDs) > 0 {
+		if err := models.SetLinkedPosts(a.DB, id, user.ID, body.LinkedPostIDs); err != nil {
+			a.internalError(w, r, err)
+			return
+		}
+	}
+
 	proj, err := models.GetProjectByID(a.DB, id)
 	if err != nil {
 		a.internalError(w, r, err)
@@ -62,7 +80,7 @@ func (a *App) DashProjectCreate(w http.ResponseWriter, r *http.Request) {
 	a.respondJSON(w, http.StatusCreated, toProjectJSON(proj))
 }
 
-// DashProjectGet handles GET /api/v1/dashboard/projects/{id} — single project.
+// DashProjectGet handles GET /api/v1/dashboard/projects/{id} — single project with full body.
 func (a *App) DashProjectGet(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 	proj, ok := a.getOwnedProject(w, r, user)
@@ -81,22 +99,55 @@ func (a *App) DashProjectUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		URL         string `json:"url"`
-		Published   bool   `json:"published"`
+		Title         string  `json:"title"`
+		Description   string  `json:"description"`
+		URL           string  `json:"url"`
+		ImagePath     string  `json:"image_path"`
+		Body          string  `json:"body"`
+		LinkedPostIDs []int64 `json:"linked_post_ids"`
+		Published     bool    `json:"published"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		a.respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	proj.Title = strings.TrimSpace(body.Title)
+	newTitle := strings.TrimSpace(body.Title)
+	if newTitle == "" {
+		a.respondError(w, http.StatusUnprocessableEntity, "title is required")
+		return
+	}
+
+	// Regenerate the slug only when the title changes.
+	if newTitle != proj.Title {
+		proj.Slug = makeUniqueSlug(a.DB, "projects", user.ID, proj.ID, slug.Make(newTitle))
+	}
+
+	proj.Title = newTitle
 	proj.Description = strings.TrimSpace(body.Description)
 	proj.URL = strings.TrimSpace(body.URL)
+	proj.Body = body.Body
 	proj.Published = body.Published
 
+	if ip := strings.TrimSpace(body.ImagePath); ip != "" {
+		proj.ImagePath = normaliseImagePath(ip, user.ID)
+	} else {
+		proj.ImagePath = ""
+	}
+
 	if err := models.UpdateProject(a.DB, proj); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+
+	if err := models.SetLinkedPosts(a.DB, proj.ID, user.ID, body.LinkedPostIDs); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+
+	// Re-fetch so linked posts are hydrated in the response.
+	proj, err := models.GetProjectByID(a.DB, proj.ID)
+	if err != nil {
 		a.internalError(w, r, err)
 		return
 	}
@@ -149,4 +200,21 @@ func (a *App) getOwnedProject(w http.ResponseWriter, r *http.Request, user *mode
 		return nil, false
 	}
 	return proj, true
+}
+
+// normaliseImagePath accepts a bare filename or a full /uploads/{id}/filename URL
+// and returns only the bare filename for storage.
+func normaliseImagePath(ip string, userID int64) string {
+	ip = strings.TrimSpace(ip)
+	if ip == "" {
+		return ""
+	}
+	prefix := "/uploads/" + strconv.FormatInt(userID, 10) + "/"
+	if strings.HasPrefix(ip, prefix) {
+		return strings.TrimPrefix(ip, prefix)
+	}
+	if !strings.Contains(ip, "/") {
+		return ip
+	}
+	return ""
 }

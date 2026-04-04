@@ -67,16 +67,18 @@ function nextID() {
 // Convert backend Widget array to react-grid-layout layout array.
 function widgetsToLayout(widgets) {
   if (!Array.isArray(widgets)) return []
-  return widgets.map((w) => {
-    const layout = w.layout || { x: 0, y: 0, w: 4, h: 3 }
-    return {
-      i: w.id,
-      x: layout.x,
-      y: layout.y,
-      w: layout.w,
-      h: layout.h,
-    }
-  })
+  return widgets
+    .filter((w) => w.id && typeof w.id === 'string' && w.id.length > 0)
+    .map((w) => {
+      const layout = w.layout || { x: 0, y: 0, w: 4, h: 3 }
+      return {
+        i: w.id,
+        x: layout.x ?? 0,
+        y: layout.y ?? 0,
+        w: layout.w || 4,
+        h: layout.h || 3,
+      }
+    })
 }
 
 // Merge an updated layout into the widgets array.
@@ -236,7 +238,7 @@ function ContentPickerDialog({ open, widgetType, available, onPick, onClose }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Choose a {widgetType.replace('_', ' ')}</DialogTitle>
+      <DialogTitle>Choose a {widgetType?.replace('_', ' ') ?? ''}</DialogTitle>
       <DialogContent dividers sx={{ p: 0 }}>
         {items.length === 0 ? (
           <Box sx={{ p: 3 }}>
@@ -581,7 +583,7 @@ function Homepage() {
               resizeHandles={['se']}
               margin={[8, 8]}
             >
-              {widgets.map((widget) => (
+              {widgets.filter((w) => w.id).map((widget) => (
                 <div key={widget.id} style={{ boxSizing: 'border-box' }}>
                   <WidgetCard
                     widget={widget}

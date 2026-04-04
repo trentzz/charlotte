@@ -184,6 +184,21 @@ func (a *App) DashAlbumToggle(w http.ResponseWriter, r *http.Request) {
 	a.respondJSON(w, http.StatusOK, map[string]bool{"published": !album.Published})
 }
 
+// DashAlbumSetDefault handles PATCH /api/v1/dashboard/gallery/albums/{id}/default
+// — marks this album as the user's default upload destination.
+func (a *App) DashAlbumSetDefault(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	album, ok := a.getOwnedAlbum(w, r, user)
+	if !ok {
+		return
+	}
+	if err := models.SetDefaultAlbum(a.DB, album.ID, user.ID); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]bool{"is_default": true})
+}
+
 // DashAlbumDelete handles DELETE /api/v1/dashboard/gallery/albums/{id}.
 func (a *App) DashAlbumDelete(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
@@ -191,8 +206,8 @@ func (a *App) DashAlbumDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Delete all associated photo files from disk.
-	photos, _ := models.ListPhotosByAlbum(a.DB, album.ID)
+	// Delete all associated photo files from disk, including photos in sub-albums.
+	photos, _ := models.ListAllPhotosByAlbum(a.DB, album.ID)
 	for _, p := range photos {
 		_ = storage.DeleteUpload(a.DataDir, p.UserID, p.Filename)
 	}
@@ -222,6 +237,11 @@ func (a *App) DashAlbumSetCover(w http.ResponseWriter, r *http.Request) {
 		a.respondError(w, http.StatusBadRequest, "photo_id is required")
 		return
 	}
+	photo, err := models.GetPhotoByID(a.DB, body.PhotoID)
+	if err != nil || photo == nil || photo.UserID != user.ID {
+		a.respondError(w, http.StatusForbidden, "photo not found")
+		return
+	}
 	_ = models.SetAlbumCover(a.DB, album.ID, body.PhotoID)
 	a.respondJSON(w, http.StatusOK, map[string]string{"message": "cover updated"})
 }
@@ -241,7 +261,7 @@ func (a *App) DashPhotoUpload(w http.ResponseWriter, r *http.Request) {
 	var album *models.Album
 	if albumID == 0 {
 		var err error
-		album, err = models.GetOrCreateGeneralAlbum(a.DB, user.ID)
+		album, err = models.GetDefaultAlbum(a.DB, user.ID)
 		if err != nil {
 			a.internalError(w, r, err)
 			return

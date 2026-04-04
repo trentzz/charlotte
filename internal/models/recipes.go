@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -200,9 +201,16 @@ func ListRecipesByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Recipe,
 		return nil, err
 	}
 
-	// Load attempts for each recipe so counts are available in templates.
-	for _, r := range recipes {
-		r.Attempts, _ = ListAttemptsByRecipe(db, r.ID)
+	// Load attempts for all recipes in a single batch query.
+	ids := make([]int64, len(recipes))
+	for i, r := range recipes {
+		ids[i] = r.ID
+	}
+	attemptsByRecipe, err := ListAttemptsByRecipes(db, ids)
+	if err == nil {
+		for _, r := range recipes {
+			r.Attempts = attemptsByRecipe[r.ID]
+		}
 	}
 	return recipes, nil
 }
@@ -257,9 +265,11 @@ func AddAttempt(db *sql.DB, a *Attempt) (int64, error) {
 	return res.LastInsertId()
 }
 
-// DeleteAttempt removes a single attempt.
-func DeleteAttempt(db *sql.DB, id int64) error {
-	_, err := db.Exec(`DELETE FROM recipe_attempts WHERE id = ?`, id)
+// DeleteAttempt removes a single attempt. recipeID is required so the delete
+// only succeeds when the attempt actually belongs to that recipe, preventing
+// IDOR attacks where a user could delete attempts from other recipes.
+func DeleteAttempt(db *sql.DB, id, recipeID int64) error {
+	_, err := db.Exec(`DELETE FROM recipe_attempts WHERE id = ? AND recipe_id = ?`, id, recipeID)
 	return err
 }
 
@@ -286,6 +296,39 @@ func ListAttemptsByRecipe(db *sql.DB, recipeID int64) ([]*Attempt, error) {
 		attempts = append(attempts, &a)
 	}
 	return attempts, rows.Err()
+}
+
+// ListAttemptsByRecipes loads attempts for a slice of recipe IDs in one query,
+// returning a map of recipeID to attempts. Returns an empty map for an empty input.
+func ListAttemptsByRecipes(db *sql.DB, recipeIDs []int64) (map[int64][]*Attempt, error) {
+	if len(recipeIDs) == 0 {
+		return map[int64][]*Attempt{}, nil
+	}
+	placeholders := make([]string, len(recipeIDs))
+	args := make([]any, len(recipeIDs))
+	for i, id := range recipeIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	q := "SELECT id, recipe_id, user_id, title, notes, created_at FROM recipe_attempts WHERE recipe_id IN (" +
+		strings.Join(placeholders, ",") + ") ORDER BY created_at ASC"
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[int64][]*Attempt)
+	for rows.Next() {
+		var a Attempt
+		var createdAt int64
+		if err := rows.Scan(&a.ID, &a.RecipeID, &a.UserID, &a.Title, &a.Notes, &createdAt); err != nil {
+			return nil, err
+		}
+		a.CreatedAt = time.Unix(createdAt, 0)
+		result[a.RecipeID] = append(result[a.RecipeID], &a)
+	}
+	return result, rows.Err()
 }
 
 // ListAllRecipes returns all recipes for admin use.

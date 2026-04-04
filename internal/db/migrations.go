@@ -220,6 +220,22 @@ var migrations = []string{
 	// 22: populate album_photos from existing gallery_photos.album_id
 	`INSERT OR IGNORE INTO album_photos (album_id, photo_id, sort_order)
 	 SELECT album_id, id, id FROM photos WHERE album_id IS NOT NULL`,
+
+	// 23: default album flag — only one album per user may have is_default = 1
+	`ALTER TABLE gallery_albums ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`,
+
+	// 24: long-form body for projects
+	`ALTER TABLE projects ADD COLUMN body TEXT NOT NULL DEFAULT ''`,
+
+	// 25: slug for projects (derived from title on create)
+	`ALTER TABLE projects ADD COLUMN slug TEXT NOT NULL DEFAULT ''`,
+
+	// 26: project–post link table
+	`CREATE TABLE IF NOT EXISTS project_post_links (
+		project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+		post_id    INTEGER NOT NULL REFERENCES blog_posts(id) ON DELETE CASCADE,
+		PRIMARY KEY (project_id, post_id)
+	)`,
 }
 
 // migrate runs any migrations that have not yet been applied, in order.

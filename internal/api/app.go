@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	stdhtml "html"
 	"net/http"
 	"strconv"
 	"strings"
@@ -63,11 +64,14 @@ var md = goldmark.New(
 )
 
 // htmlSanitiser is the bluemonday policy for sanitising WYSIWYG HTML output on save.
+// "style" is intentionally not allowed globally — it would permit CSS injection.
+// Only scoped text-alignment styles are permitted on common content elements.
 var htmlSanitiser = func() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
 	p.AllowRelativeURLs(true)
-	p.AllowAttrs("class", "style").Globally()
+	p.AllowAttrs("class").Globally()
 	p.AllowAttrs("src", "alt", "width", "height", "loading").OnElements("img")
+	p.AllowStyles("text-align").OnElements("p", "div", "span", "h1", "h2", "h3", "h4", "blockquote")
 	return p
 }()
 
@@ -77,21 +81,21 @@ func sanitizeContent(s string) string {
 }
 
 // renderContent renders stored content as safe HTML for display.
-// Content saved by the WYSIWYG editor starts with "<" and is returned as-is.
-// Legacy markdown is rendered via goldmark.
+// Content saved by the WYSIWYG editor starts with "<"; legacy content is markdown.
+// All output is run through the bluemonday sanitiser before returning.
 func renderContent(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ""
 	}
 	if strings.HasPrefix(s, "<") {
-		return s
+		return htmlSanitiser.Sanitize(s)
 	}
 	var buf bytes.Buffer
 	if err := md.Convert([]byte(s), &buf); err != nil {
-		return s
+		return stdhtml.EscapeString(s)
 	}
-	return buf.String()
+	return htmlSanitiser.Sanitize(buf.String())
 }
 
 // ── Slug helpers ──────────────────────────────────────────────────────────────
@@ -161,17 +165,18 @@ func clamp(v, min, max int) int {
 
 // userJSON is the public-facing JSON representation of a user.
 type userJSON struct {
-	ID          int64            `json:"id"`
-	Username    string           `json:"username"`
-	DisplayName string           `json:"display_name"`
-	Bio         string           `json:"bio"`
-	AvatarURL   string           `json:"avatar_url"`
-	Role        models.Role      `json:"role"`
-	Status      models.Status    `json:"status"`
-	Features    featuresJSON     `json:"features"`
-	Theme       models.UserTheme `json:"theme"`
+	ID          int64             `json:"id"`
+	Username    string            `json:"username"`
+	DisplayName string            `json:"display_name"`
+	Bio         string            `json:"bio"`
+	AvatarURL   string            `json:"avatar_url"`
+	Role        models.Role       `json:"role"`
+	Status      models.Status     `json:"status"`
+	IsAdmin     bool              `json:"is_admin"`
+	Features    featuresJSON      `json:"features"`
+	Theme       models.UserTheme  `json:"theme"`
 	Links       []models.UserLink `json:"links"`
-	CreatedAt   string           `json:"created_at"`
+	CreatedAt   string            `json:"created_at"`
 }
 
 // userJSONWithEmail extends userJSON with an email field for private/admin endpoints.
@@ -206,6 +211,7 @@ func toUserJSON(u *models.User) userJSON {
 		AvatarURL:   avatarURL,
 		Role:        u.Role,
 		Status:      u.Status,
+		IsAdmin:     u.IsAdmin(),
 		Features: featuresJSON{
 			Blog:     u.FeatureBlog,
 			About:    u.FeatureAbout,

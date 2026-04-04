@@ -15,6 +15,7 @@ type Album struct {
 	Slug        string
 	Description string
 	Published   bool
+	IsDefault   bool
 	CoverPhoto  *Photo
 	PhotoCount  int
 	SubAlbums   []*Album
@@ -68,7 +69,7 @@ func CreateAlbum(db *sql.DB, a *Album) (int64, error) {
 // GetAlbumBySlug returns an album for a user by slug, including sub-albums.
 func GetAlbumBySlug(db *sql.DB, userID int64, slug string) (*Album, error) {
 	a, err := scanAlbum(db.QueryRow(
-		`SELECT id, user_id, parent_id, title, slug, description, published, cover_photo, created_at, updated_at
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at
 		 FROM gallery_albums WHERE user_id = ? AND slug = ?`, userID, slug,
 	))
 	if err != nil {
@@ -81,7 +82,7 @@ func GetAlbumBySlug(db *sql.DB, userID int64, slug string) (*Album, error) {
 // GetAlbumByID returns an album by its primary key, including sub-albums.
 func GetAlbumByID(db *sql.DB, id int64) (*Album, error) {
 	a, err := scanAlbum(db.QueryRow(
-		`SELECT id, user_id, parent_id, title, slug, description, published, cover_photo, created_at, updated_at
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at
 		 FROM gallery_albums WHERE id = ?`, id,
 	))
 	if err != nil {
@@ -93,13 +94,13 @@ func GetAlbumByID(db *sql.DB, id int64) (*Album, error) {
 
 func scanAlbum(row interface{ Scan(...any) error }) (*Album, error) {
 	var a Album
-	var published int
+	var published, isDefault int
 	var parentID sql.NullInt64
 	var coverPhotoID sql.NullInt64
 	var createdAt, updatedAt int64
 	err := row.Scan(
 		&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
-		&published, &coverPhotoID, &createdAt, &updatedAt,
+		&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -108,6 +109,7 @@ func scanAlbum(row interface{ Scan(...any) error }) (*Album, error) {
 		a.ParentID = &parentID.Int64
 	}
 	a.Published = published == 1
+	a.IsDefault = isDefault == 1
 	_ = coverPhotoID // cover photo loaded separately when needed
 	a.CreatedAt = time.Unix(createdAt, 0)
 	a.UpdatedAt = time.Unix(updatedAt, 0)
@@ -127,7 +129,7 @@ func SetAlbumPublished(db *sql.DB, albumID int64, published bool) error {
 // extraWhere is appended after "WHERE ga.user_id = ?" with no additional params.
 func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWhere string) ([]*Album, error) {
 	q := `SELECT ga.id, ga.user_id, ga.parent_id, ga.title, ga.slug, ga.description,
-		        ga.published, ga.cover_photo, ga.created_at, ga.updated_at,
+		        ga.published, ga.is_default, ga.cover_photo, ga.created_at, ga.updated_at,
 		        COUNT(ap.photo_id) as photo_count
 		 FROM gallery_albums ga
 		 LEFT JOIN album_photos ap ON ap.album_id = ga.id
@@ -154,13 +156,13 @@ func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWh
 	var covers []coverEntry
 	for rows.Next() {
 		var a Album
-		var published int
+		var published, isDefault int
 		var parentID sql.NullInt64
 		var coverPhotoID sql.NullInt64
 		var createdAt, updatedAt int64
 		if err := rows.Scan(
 			&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
-			&published, &coverPhotoID, &createdAt, &updatedAt, &a.PhotoCount,
+			&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt, &a.PhotoCount,
 		); err != nil {
 			rows.Close()
 			return nil, err
@@ -169,6 +171,7 @@ func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWh
 			a.ParentID = &parentID.Int64
 		}
 		a.Published = published == 1
+		a.IsDefault = isDefault == 1
 		a.CreatedAt = time.Unix(createdAt, 0)
 		a.UpdatedAt = time.Unix(updatedAt, 0)
 		if coverPhotoID.Valid {
@@ -248,6 +251,83 @@ func GetOrCreateGeneralAlbum(db *sql.DB, userID int64) (*Album, error) {
 	return GetAlbumByID(db, id)
 }
 
+// getDefaultAlbumRow scans a single row into an Album using the standard select columns.
+func getDefaultAlbumRow(db *sql.DB, userID int64) (*Album, error) {
+	var a Album
+	var published, isDefault int
+	var parentID sql.NullInt64
+	var coverPhotoID sql.NullInt64
+	var createdAt, updatedAt int64
+	err := db.QueryRow(
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at
+		 FROM gallery_albums WHERE user_id = ? AND is_default = 1 LIMIT 1`, userID,
+	).Scan(
+		&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
+		&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if parentID.Valid {
+		a.ParentID = &parentID.Int64
+	}
+	a.Published = published == 1
+	a.IsDefault = true
+	a.CreatedAt = time.Unix(createdAt, 0)
+	a.UpdatedAt = time.Unix(updatedAt, 0)
+	return &a, nil
+}
+
+// GetDefaultAlbum returns the user's default album, creating one named "Uploads" if none exists.
+func GetDefaultAlbum(db *sql.DB, userID int64) (*Album, error) {
+	if a, err := getDefaultAlbumRow(db, userID); err == nil {
+		return a, nil
+	}
+
+	// No default album found — create one named "Uploads" and mark it as default.
+	id, err := CreateAlbum(db, &Album{
+		UserID: userID,
+		Title:  "Uploads",
+		Slug:   "uploads",
+	})
+	if err != nil {
+		// Slug collision or concurrent creation — retry reading the default.
+		if a, err2 := getDefaultAlbumRow(db, userID); err2 == nil {
+			return a, nil
+		}
+		return nil, err
+	}
+	// Mark the newly created album as the default.
+	if _, err2 := db.Exec(
+		`UPDATE gallery_albums SET is_default = 1 WHERE id = ?`, id,
+	); err2 != nil {
+		return nil, err2
+	}
+	return GetAlbumByID(db, id)
+}
+
+// SetDefaultAlbum marks albumID as the default for userID, clearing any previous default.
+// Both updates run in a single transaction to avoid a window where no album is default.
+func SetDefaultAlbum(db *sql.DB, albumID, userID int64) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if _, err := tx.Exec(
+		`UPDATE gallery_albums SET is_default = 0 WHERE user_id = ? AND is_default = 1`, userID,
+	); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(
+		`UPDATE gallery_albums SET is_default = 1 WHERE id = ? AND user_id = ?`, albumID, userID,
+	); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // CreatePhoto inserts a new photo record.
 func CreatePhoto(db *sql.DB, p *Photo) (int64, error) {
 	res, err := db.Exec(
@@ -304,7 +384,7 @@ func ListAllPhotosByAlbum(db *sql.DB, albumID int64) ([]*Photo, error) {
 // ListSubAlbums returns direct children of a parent album.
 func ListSubAlbums(db *sql.DB, parentID int64) ([]*Album, error) {
 	rows, err := db.Query(
-		`SELECT id, user_id, parent_id, title, slug, description, published, cover_photo, created_at, updated_at
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at
 		 FROM gallery_albums WHERE parent_id = ? ORDER BY created_at ASC`, parentID,
 	)
 	if err != nil {
