@@ -9,12 +9,14 @@ import client from '../../api/client.js'
 
 // Render a list of ingredient groups. Falls back to a flat ingredient array for
 // legacy recipes that have not been re-saved with the new structure.
+// Ingredients are numbered globally across all groups.
 function IngredientsSection({ groups, legacyIngredients }) {
   // Prefer structured groups when present and non-empty.
   const hasGroups = groups && groups.length > 0 &&
     groups.some((g) => g.items && g.items.length > 0)
 
   if (hasGroups) {
+    let globalNum = 0
     return (
       <>
         {groups.map((group, gi) => (
@@ -25,11 +27,18 @@ function IngredientsSection({ groups, legacyIngredients }) {
               </Typography>
             )}
             <List dense disablePadding>
-              {(group.items || []).map((item, i) => (
-                <ListItem key={i} sx={{ py: 0.25, pl: 0 }}>
-                  <ListItemText primary={item} />
-                </ListItem>
-              ))}
+              {(group.items || []).map((item, i) => {
+                globalNum += 1
+                const num = globalNum
+                return (
+                  <ListItem key={i} sx={{ py: 0.25, pl: 0, alignItems: 'flex-start' }}>
+                    <Typography variant="body2" sx={{ mr: 1.5, fontWeight: 700, minWidth: 24, color: 'text.secondary', flexShrink: 0, pt: 0.1 }}>
+                      {num}.
+                    </Typography>
+                    <ListItemText primary={item} />
+                  </ListItem>
+                )
+              })}
             </List>
           </Box>
         ))}
@@ -37,13 +46,16 @@ function IngredientsSection({ groups, legacyIngredients }) {
     )
   }
 
-  // Legacy flat list.
+  // Legacy flat list — number sequentially.
   const flat = Array.isArray(legacyIngredients) ? legacyIngredients : []
   if (flat.length === 0) return null
   return (
     <List dense sx={{ mb: 1 }}>
       {flat.map((ing, i) => (
-        <ListItem key={i} sx={{ py: 0.25, pl: 0 }}>
+        <ListItem key={i} sx={{ py: 0.25, pl: 0, alignItems: 'flex-start' }}>
+          <Typography variant="body2" sx={{ mr: 1.5, fontWeight: 700, minWidth: 24, color: 'text.secondary', flexShrink: 0, pt: 0.1 }}>
+            {i + 1}.
+          </Typography>
           <ListItemText
             primary={typeof ing === 'string' ? ing : `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim()}
           />
@@ -243,6 +255,26 @@ export default function RecipePost() {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {variations.map((v, i) => (
               <Paper key={i} variant="outlined" sx={{ p: 2 }}>
+                {(v.from_ingredient > 0 || v.from_step > 0) && (
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                    {v.from_ingredient > 0 && (
+                      <Chip
+                        label={`From ingredient ${v.from_ingredient}`}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                      />
+                    )}
+                    {v.from_step > 0 && (
+                      <Chip
+                        label={`From step ${v.from_step}`}
+                        size="small"
+                        variant="outlined"
+                        color="secondary"
+                      />
+                    )}
+                  </Box>
+                )}
                 {v.title && (
                   <Typography variant="subtitle2" fontWeight={700} gutterBottom>
                     {v.title}
