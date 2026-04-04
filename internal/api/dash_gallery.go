@@ -31,6 +31,7 @@ func (a *App) DashAlbumCreate(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Title       string `json:"title"`
 		Description string `json:"description"`
+		ParentID    *int64 `json:"parent_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		a.respondError(w, http.StatusBadRequest, "invalid request body")
@@ -42,9 +43,20 @@ func (a *App) DashAlbumCreate(w http.ResponseWriter, r *http.Request) {
 		a.respondError(w, http.StatusUnprocessableEntity, "title is required")
 		return
 	}
+
+	// Validate parent album ownership when provided.
+	if body.ParentID != nil {
+		parent, err := models.GetAlbumByID(a.DB, *body.ParentID)
+		if err != nil || (parent.UserID != user.ID && !user.IsAdmin()) {
+			a.respondError(w, http.StatusNotFound, "parent album not found")
+			return
+		}
+	}
+
 	s := makeUniqueSlug(a.DB, "gallery_albums", user.ID, 0, slug.Make(title))
 	id, err := models.CreateAlbum(a.DB, &models.Album{
 		UserID:      user.ID,
+		ParentID:    body.ParentID,
 		Title:       title,
 		Slug:        s,
 		Description: strings.TrimSpace(body.Description),
@@ -73,10 +85,89 @@ func (a *App) DashAlbumGet(w http.ResponseWriter, r *http.Request) {
 		a.internalError(w, r, err)
 		return
 	}
+	allPhotos, err := models.ListAllPhotosByAlbum(a.DB, album.ID)
+	if err != nil {
+		a.internalError(w, r, err)
+		return
+	}
 	a.respondJSON(w, http.StatusOK, map[string]any{
-		"album":  toAlbumJSON(album),
-		"photos": toPhotoList(photos),
+		"album":      toAlbumJSON(album),
+		"photos":     toPhotoList(photos),
+		"all_photos": toPhotoList(allPhotos),
 	})
+}
+
+// DashAlbumAddPhoto handles POST /api/v1/dashboard/gallery/albums/{id}/photos.
+func (a *App) DashAlbumAddPhoto(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	album, ok := a.getOwnedAlbum(w, r, user)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		PhotoID int64 `json:"photo_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if body.PhotoID == 0 {
+		a.respondError(w, http.StatusBadRequest, "photo_id is required")
+		return
+	}
+
+	// Verify the photo belongs to this user.
+	photo, err := models.GetPhotoByID(a.DB, body.PhotoID)
+	if err != nil || (photo.UserID != user.ID && !user.IsAdmin()) {
+		a.respondError(w, http.StatusNotFound, "photo not found")
+		return
+	}
+
+	if err := models.AddPhotoToAlbum(a.DB, album.ID, body.PhotoID); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// DashAlbumRemovePhoto handles DELETE /api/v1/dashboard/gallery/albums/{id}/photos/{photoID}.
+func (a *App) DashAlbumRemovePhoto(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	album, ok := a.getOwnedAlbum(w, r, user)
+	if !ok {
+		return
+	}
+
+	photoID, err := strconv.ParseInt(r.PathValue("photoID"), 10, 64)
+	if err != nil {
+		a.respondError(w, http.StatusNotFound, "photo not found")
+		return
+	}
+
+	// Verify ownership.
+	photo, err := models.GetPhotoByID(a.DB, photoID)
+	if err != nil || (photo.UserID != user.ID && !user.IsAdmin()) {
+		a.respondError(w, http.StatusNotFound, "photo not found")
+		return
+	}
+
+	if err := models.RemovePhotoFromAlbum(a.DB, album.ID, photoID); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// DashUserPhotos handles GET /api/v1/dashboard/gallery/photos — all photos for the logged-in user.
+func (a *App) DashUserPhotos(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	photos, err := models.ListUserPhotosAll(a.DB, user.ID, 500)
+	if err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]any{"photos": toPhotoList(photos)})
 }
 
 // DashAlbumToggle handles PATCH /api/v1/dashboard/gallery/albums/{id}/toggle.
@@ -193,6 +284,7 @@ func (a *App) DashPhotoUpload(w http.ResponseWriter, r *http.Request) {
 			failed++
 			continue
 		}
+		_ = models.AddPhotoToAlbum(a.DB, album.ID, photoID)
 		_ = models.SetAlbumCoverIfNone(a.DB, album.ID, photoID)
 		if p, err := models.GetPhotoByID(a.DB, photoID); err == nil {
 			uploaded = append(uploaded, toPhotoJSON(p))

@@ -204,6 +204,22 @@ var migrations = []string{
 	)`,
 
 	`CREATE INDEX IF NOT EXISTS idx_recipe_photos_recipe_id ON recipe_photos(recipe_id)`,
+
+	// 20: sub-album support — parent_id on gallery_albums
+	`ALTER TABLE gallery_albums ADD COLUMN parent_id INTEGER REFERENCES gallery_albums(id) ON DELETE CASCADE`,
+
+	// 21: many-to-many photo-album membership
+	`CREATE TABLE IF NOT EXISTS album_photos (
+		album_id   INTEGER NOT NULL REFERENCES gallery_albums(id) ON DELETE CASCADE,
+		photo_id   INTEGER NOT NULL REFERENCES photos(id)         ON DELETE CASCADE,
+		sort_order INTEGER NOT NULL DEFAULT 0,
+		created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+		PRIMARY KEY (album_id, photo_id)
+	)`,
+
+	// 22: populate album_photos from existing gallery_photos.album_id
+	`INSERT OR IGNORE INTO album_photos (album_id, photo_id, sort_order)
+	 SELECT album_id, id, id FROM photos WHERE album_id IS NOT NULL`,
 }
 
 // migrate runs any migrations that have not yet been applied, in order.

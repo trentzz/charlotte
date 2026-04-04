@@ -313,15 +313,17 @@ func toProjectList(projects []*models.Project) []projectJSON {
 }
 
 type albumJSON struct {
-	ID          int64      `json:"id"`
-	Title       string     `json:"title"`
-	Slug        string     `json:"slug"`
-	Description string     `json:"description"`
-	Published   bool       `json:"published"`
-	CoverPhoto  *photoJSON `json:"cover_photo"`
-	PhotoCount  int        `json:"photo_count"`
-	CreatedAt   string     `json:"created_at"`
-	UpdatedAt   string     `json:"updated_at"`
+	ID          int64       `json:"id"`
+	ParentID    *int64      `json:"parent_id,omitempty"`
+	Title       string      `json:"title"`
+	Slug        string      `json:"slug"`
+	Description string      `json:"description"`
+	Published   bool        `json:"published"`
+	CoverPhoto  *photoJSON  `json:"cover_photo"`
+	PhotoCount  int         `json:"photo_count"`
+	SubAlbums   []albumJSON `json:"sub_albums,omitempty"`
+	CreatedAt   string      `json:"created_at"`
+	UpdatedAt   string      `json:"updated_at"`
 }
 
 func toAlbumJSON(a *models.Album) albumJSON {
@@ -330,8 +332,9 @@ func toAlbumJSON(a *models.Album) albumJSON {
 		c := toPhotoJSON(a.CoverPhoto)
 		cover = &c
 	}
-	return albumJSON{
+	aj := albumJSON{
 		ID:          a.ID,
+		ParentID:    a.ParentID,
 		Title:       a.Title,
 		Slug:        a.Slug,
 		Description: a.Description,
@@ -341,6 +344,10 @@ func toAlbumJSON(a *models.Album) albumJSON {
 		CreatedAt:   a.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:   a.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
+	if len(a.SubAlbums) > 0 {
+		aj.SubAlbums = toAlbumList(a.SubAlbums)
+	}
+	return aj
 }
 
 func toAlbumList(albums []*models.Album) []albumJSON {

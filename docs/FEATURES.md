@@ -29,10 +29,15 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - Photos belong to albums. A "General" album is created automatically for unassigned photos.
 - Per-album visibility toggle (public / private).
 - Album cover photo: set automatically on first upload; can be changed manually.
-- **Gallery home**: single top nav only, then a "Gallery" section title, album grid (no rounded corners) and a recent photos grid.
+- **Gallery home**: single top nav only, then a "Gallery" section title, album grid (no rounded corners) and a recent photos grid. Only top-level albums (no parent) appear here.
 - **Album page**: editorial, photography-first layout inspired by Sean Tucker's style. Centred title in the display font, muted photo count, optional italic description, then a full-width masonry photo grid (3 columns on desktop, 2 on tablet ≤900 px, 1 on mobile ≤600 px) with 10 px gap, original aspect ratios preserved, and no rounded corners. Back link at the bottom.
 - Albums listed as direct links in the Gallery nav dropdown.
 - **Lightbox**: click any photo to view full-size with prev/next navigation and keyboard support (arrow keys, Escape).
+- **Sub-albums**: albums can be nested one level deep. Create a sub-album from inside an album's dashboard view using the "Sub-album" button. Sub-albums do not appear on the gallery home page.
+- **Many-to-many photo membership**: a photo can belong to multiple albums simultaneously. In the dashboard album view, use "Add existing" to pick any of your photos and add them to the current album without re-uploading. Photos are stored once in `photos`; membership tracked in the `album_photos` join table (migrations 20–22).
+- **Remove from album**: each photo in the dashboard album view has a "Remove from album" action that removes it from the album without deleting the file.
+- **Dashboard album view tabs**: when an album has sub-albums, pill buttons appear at the top — "This album" (current album only), "All (inc. sub-albums)" (union of all photos), and one button per sub-album (navigates to that album).
+- **Public album navigation**: when a public album has sub-albums, pill buttons appear below the album header — "All" (default, shows all photos across this album and sub-albums), the parent album name, and one button per sub-album.
 
 ### Recipes
 

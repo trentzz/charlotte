@@ -22,7 +22,7 @@ func (a *App) GalleryHome(w http.ResponseWriter, r *http.Request) {
 
 	viewer := middleware.UserFromContext(r.Context())
 	isOwner := viewer != nil && viewer.ID == profile.ID
-	albums, _ := models.ListAlbumsByUser(a.DB, profile.ID, !isOwner)
+	albums, _ := models.ListTopLevelAlbumsByUser(a.DB, profile.ID, !isOwner)
 	recent, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 12)
 
 	a.respondJSON(w, http.StatusOK, map[string]any{
@@ -54,11 +54,18 @@ func (a *App) GalleryAlbum(w http.ResponseWriter, r *http.Request) {
 		a.respondError(w, http.StatusNotFound, "album not found")
 		return
 	}
-	photos, _ := models.ListPhotosByAlbum(a.DB, album.ID)
+
+	var photos []*models.Photo
+	if r.URL.Query().Get("filter") == "all" {
+		photos, _ = models.ListAllPhotosByAlbum(a.DB, album.ID)
+	} else {
+		photos, _ = models.ListPhotosByAlbum(a.DB, album.ID)
+	}
 
 	a.respondJSON(w, http.StatusOK, map[string]any{
-		"album":    toAlbumJSON(album),
-		"photos":   toPhotoList(photos),
-		"is_owner": isOwner,
+		"album":      toAlbumJSON(album),
+		"photos":     toPhotoList(photos),
+		"is_owner":   isOwner,
+		"sub_albums": toAlbumList(album.SubAlbums),
 	})
 }

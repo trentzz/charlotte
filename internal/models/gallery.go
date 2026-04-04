@@ -10,12 +10,14 @@ import (
 type Album struct {
 	ID          int64
 	UserID      int64
+	ParentID    *int64
 	Title       string
 	Slug        string
 	Description string
 	Published   bool
 	CoverPhoto  *Photo
 	PhotoCount  int
+	SubAlbums   []*Album
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -54,8 +56,8 @@ const photoSelect = `SELECT id, user_id, album_id, filename, caption,
 // CreateAlbum inserts a new album and returns its ID.
 func CreateAlbum(db *sql.DB, a *Album) (int64, error) {
 	res, err := db.Exec(
-		`INSERT INTO gallery_albums (user_id, title, slug, description) VALUES (?, ?, ?, ?)`,
-		a.UserID, a.Title, a.Slug, a.Description,
+		`INSERT INTO gallery_albums (user_id, title, slug, description, parent_id) VALUES (?, ?, ?, ?, ?)`,
+		a.UserID, a.Title, a.Slug, a.Description, a.ParentID,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("create album: %w", err)
@@ -63,33 +65,47 @@ func CreateAlbum(db *sql.DB, a *Album) (int64, error) {
 	return res.LastInsertId()
 }
 
-// GetAlbumBySlug returns an album for a user by slug.
+// GetAlbumBySlug returns an album for a user by slug, including sub-albums.
 func GetAlbumBySlug(db *sql.DB, userID int64, slug string) (*Album, error) {
-	return scanAlbum(db.QueryRow(
-		`SELECT id, user_id, title, slug, description, published, cover_photo, created_at, updated_at
+	a, err := scanAlbum(db.QueryRow(
+		`SELECT id, user_id, parent_id, title, slug, description, published, cover_photo, created_at, updated_at
 		 FROM gallery_albums WHERE user_id = ? AND slug = ?`, userID, slug,
 	))
+	if err != nil {
+		return nil, err
+	}
+	a.SubAlbums, _ = ListSubAlbums(db, a.ID)
+	return a, nil
 }
 
-// GetAlbumByID returns an album by its primary key.
+// GetAlbumByID returns an album by its primary key, including sub-albums.
 func GetAlbumByID(db *sql.DB, id int64) (*Album, error) {
-	return scanAlbum(db.QueryRow(
-		`SELECT id, user_id, title, slug, description, published, cover_photo, created_at, updated_at
+	a, err := scanAlbum(db.QueryRow(
+		`SELECT id, user_id, parent_id, title, slug, description, published, cover_photo, created_at, updated_at
 		 FROM gallery_albums WHERE id = ?`, id,
 	))
+	if err != nil {
+		return nil, err
+	}
+	a.SubAlbums, _ = ListSubAlbums(db, a.ID)
+	return a, nil
 }
 
 func scanAlbum(row interface{ Scan(...any) error }) (*Album, error) {
 	var a Album
 	var published int
+	var parentID sql.NullInt64
 	var coverPhotoID sql.NullInt64
 	var createdAt, updatedAt int64
 	err := row.Scan(
-		&a.ID, &a.UserID, &a.Title, &a.Slug, &a.Description,
+		&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
 		&published, &coverPhotoID, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if parentID.Valid {
+		a.ParentID = &parentID.Int64
 	}
 	a.Published = published == 1
 	_ = coverPhotoID // cover photo loaded separately when needed
@@ -107,17 +123,20 @@ func SetAlbumPublished(db *sql.DB, albumID int64, published bool) error {
 	return err
 }
 
-// ListAlbumsByUser returns all albums for a user with photo counts.
-// Pass publishedOnly=true for the public gallery view.
-func ListAlbumsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Album, error) {
-	q := `SELECT ga.id, ga.user_id, ga.title, ga.slug, ga.description,
+// listAlbumsByUserWhere is the shared implementation for album list queries.
+// extraWhere is appended after "WHERE ga.user_id = ?" with no additional params.
+func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWhere string) ([]*Album, error) {
+	q := `SELECT ga.id, ga.user_id, ga.parent_id, ga.title, ga.slug, ga.description,
 		        ga.published, ga.cover_photo, ga.created_at, ga.updated_at,
-		        COUNT(p.id) as photo_count
+		        COUNT(ap.photo_id) as photo_count
 		 FROM gallery_albums ga
-		 LEFT JOIN photos p ON p.album_id = ga.id
+		 LEFT JOIN album_photos ap ON ap.album_id = ga.id
 		 WHERE ga.user_id = ?`
 	if publishedOnly {
 		q += ` AND ga.published = 1`
+	}
+	if extraWhere != "" {
+		q += ` ` + extraWhere
 	}
 	q += ` GROUP BY ga.id ORDER BY ga.created_at DESC`
 	rows, err := db.Query(q, userID)
@@ -136,14 +155,18 @@ func ListAlbumsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Album, e
 	for rows.Next() {
 		var a Album
 		var published int
+		var parentID sql.NullInt64
 		var coverPhotoID sql.NullInt64
 		var createdAt, updatedAt int64
 		if err := rows.Scan(
-			&a.ID, &a.UserID, &a.Title, &a.Slug, &a.Description,
+			&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
 			&published, &coverPhotoID, &createdAt, &updatedAt, &a.PhotoCount,
 		); err != nil {
 			rows.Close()
 			return nil, err
+		}
+		if parentID.Valid {
+			a.ParentID = &parentID.Int64
 		}
 		a.Published = published == 1
 		a.CreatedAt = time.Unix(createdAt, 0)
@@ -166,6 +189,17 @@ func ListAlbumsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Album, e
 		}
 	}
 	return albums, nil
+}
+
+// ListAlbumsByUser returns all albums for a user with photo counts.
+// Pass publishedOnly=true for the public gallery view.
+func ListAlbumsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Album, error) {
+	return listAlbumsByUserWhere(db, userID, publishedOnly, "")
+}
+
+// ListTopLevelAlbumsByUser returns albums with no parent (top-level only).
+func ListTopLevelAlbumsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Album, error) {
+	return listAlbumsByUserWhere(db, userID, publishedOnly, "AND ga.parent_id IS NULL")
 }
 
 // DeleteAlbum removes an album. Photos are cascade-deleted by SQLite.
@@ -233,14 +267,108 @@ func GetPhotoByID(db *sql.DB, id int64) (*Photo, error) {
 	return scanPhoto(db.QueryRow(photoSelect+` WHERE id = ?`, id))
 }
 
-// ListPhotosByAlbum returns all photos in an album ordered by upload time.
+// ListPhotosByAlbum returns photos in an album via the album_photos join table.
 func ListPhotosByAlbum(db *sql.DB, albumID int64) ([]*Photo, error) {
-	rows, err := db.Query(photoSelect+` WHERE album_id = ? ORDER BY created_at DESC`, albumID)
+	q := `SELECT p.id, p.user_id, p.album_id, p.filename, p.caption,
+		        p.mime_type, p.size_bytes, p.width, p.height, p.created_at
+		  FROM photos p
+		  JOIN album_photos ap ON ap.photo_id = p.id
+		  WHERE ap.album_id = ?
+		  ORDER BY ap.sort_order ASC, ap.created_at ASC`
+	rows, err := db.Query(q, albumID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	return scanPhotos(rows)
+}
+
+// ListAllPhotosByAlbum returns photos from this album and all its sub-albums.
+func ListAllPhotosByAlbum(db *sql.DB, albumID int64) ([]*Photo, error) {
+	q := `SELECT DISTINCT p.id, p.user_id, p.album_id, p.filename, p.caption,
+		        p.mime_type, p.size_bytes, p.width, p.height, p.created_at
+		  FROM photos p
+		  JOIN album_photos ap ON ap.photo_id = p.id
+		  WHERE ap.album_id = ? OR ap.album_id IN (
+		    SELECT id FROM gallery_albums WHERE parent_id = ?
+		  )
+		  ORDER BY p.created_at DESC`
+	rows, err := db.Query(q, albumID, albumID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanPhotos(rows)
+}
+
+// ListSubAlbums returns direct children of a parent album.
+func ListSubAlbums(db *sql.DB, parentID int64) ([]*Album, error) {
+	rows, err := db.Query(
+		`SELECT id, user_id, parent_id, title, slug, description, published, cover_photo, created_at, updated_at
+		 FROM gallery_albums WHERE parent_id = ? ORDER BY created_at ASC`, parentID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	var albums []*Album
+	for rows.Next() {
+		a, err := scanAlbum(rows)
+		if err != nil {
+			rows.Close()
+			return nil, err
+		}
+		albums = append(albums, a)
+	}
+	rows.Close()
+	return albums, rows.Err()
+}
+
+// AddPhotoToAlbum adds a photo to an album via the join table.
+func AddPhotoToAlbum(db *sql.DB, albumID, photoID int64) error {
+	_, err := db.Exec(
+		`INSERT OR IGNORE INTO album_photos (album_id, photo_id) VALUES (?, ?)`,
+		albumID, photoID,
+	)
+	return err
+}
+
+// RemovePhotoFromAlbum removes a photo from an album without deleting the photo.
+func RemovePhotoFromAlbum(db *sql.DB, albumID, photoID int64) error {
+	_, err := db.Exec(
+		`DELETE FROM album_photos WHERE album_id = ? AND photo_id = ?`,
+		albumID, photoID,
+	)
+	return err
+}
+
+// ListUserPhotosAll returns all photos for a user regardless of album, newest first.
+func ListUserPhotosAll(db *sql.DB, userID int64, limit int) ([]*Photo, error) {
+	rows, err := db.Query(
+		photoSelect+` WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`, userID, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanPhotos(rows)
+}
+
+// ListPhotoIDsInAlbum returns the set of photo IDs already in an album.
+func ListPhotoIDsInAlbum(db *sql.DB, albumID int64) (map[int64]bool, error) {
+	rows, err := db.Query(`SELECT photo_id FROM album_photos WHERE album_id = ?`, albumID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[int64]bool)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
 }
 
 // ListRecentPhotosByUser returns the N most recent photos for a user.
