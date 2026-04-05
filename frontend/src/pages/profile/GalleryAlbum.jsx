@@ -26,10 +26,23 @@ export default function GalleryAlbum() {
     setFilter('all')
     setLoading(true)
     client.get(`/u/${username}/gallery/${album}?filter=all`)
-      .then((res) => setData(res.data))
+      .then((res) => {
+        const d = res.data
+        // If this is a parent album with a default child, navigate straight to
+        // that sub-album so the visitor lands on the intended view.
+        if (
+          d?.album?.default_child_slug &&
+          (d?.sub_albums?.length ?? 0) > 0 &&
+          !d?.album?.parent_id
+        ) {
+          navigate(`/u/${username}/gallery/${d.album.default_child_slug}`, { replace: true })
+          return
+        }
+        setData(d)
+      })
       .catch(() => setError('Album not found.'))
       .finally(() => setLoading(false))
-  }, [username, album])
+  }, [username, album, navigate])
 
   async function switchFilter(newFilter) {
     if (newFilter === filter) return

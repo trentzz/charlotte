@@ -161,7 +161,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
   // Build dropdown items from profile data returned by /u/:username.
   const recentPosts = navData?.recent_posts?.slice(0, 5) || []
   const recentProjects = navData?.recent_projects?.slice(0, 5) || []
-  const albums = navData?.albums?.slice(0, 10) || []
+  const albums = (navData?.albums || []).filter((a) => !a.parent_id).slice(0, 10)
   const recentRecipes = navData?.recent_recipes?.slice(0, 5) || []
 
   const blogItems = recentPosts.map((p) => ({
@@ -169,7 +169,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
     label: p.title,
   }))
   const projectItems = recentProjects.map((p) => ({
-    href: `/u/${username}/projects`,
+    href: `/u/${username}/projects/${p.slug}`,
     label: p.title,
   }))
   const galleryItems = albums.map((a) => ({

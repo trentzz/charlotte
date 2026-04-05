@@ -293,6 +293,9 @@ var migrations = []string{
 	`ALTER TABLE users_new RENAME TO users`,
 	`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`,
 	`CREATE INDEX IF NOT EXISTS idx_users_status   ON users(status)`,
+
+	// 32: default landing sub-album for a parent album
+	`ALTER TABLE gallery_albums ADD COLUMN default_child_id INTEGER REFERENCES gallery_albums(id) ON DELETE SET NULL`,
 }
 
 // migrate runs any migrations that have not yet been applied, in order.

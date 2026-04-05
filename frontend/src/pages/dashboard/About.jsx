@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import {
   Box, Typography, Button, Alert, CircularProgress, Paper,
 } from '@mui/material'
+import CheckIcon from '@mui/icons-material/Check'
 import client from '../../api/client.js'
 
 // Lazy-load react-quill to avoid SSR issues.
@@ -30,8 +31,8 @@ export default function About() {
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
   const [quillReady, setQuillReady] = useState(false)
   const QuillRef = useRef(null)
 
@@ -55,11 +56,11 @@ export default function About() {
 
   async function handleSave() {
     setError(null)
-    setSuccess(null)
     setSaving(true)
     try {
       await client.put('/dashboard/about', { content })
-      setSuccess('About page saved.')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save.')
     } finally {
@@ -78,7 +79,6 @@ export default function About() {
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
       {quillReady && Q ? (
         <Paper variant="outlined" sx={{ mb: 2, '& .ql-container': { minHeight: 300, fontSize: 15 } }}>
@@ -96,8 +96,14 @@ export default function About() {
         </Box>
       )}
 
-      <Button variant="contained" onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving…' : 'Save about page'}
+      <Button
+        variant="contained"
+        color={saved ? 'success' : 'primary'}
+        startIcon={saved ? <CheckIcon /> : null}
+        onClick={handleSave}
+        disabled={saving}
+      >
+        {saving ? 'Saving…' : saved ? 'Changes saved' : 'Save about page'}
       </Button>
     </Box>
   )

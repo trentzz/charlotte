@@ -9,19 +9,20 @@ import (
 
 // Album is a named collection of photos.
 type Album struct {
-	ID          int64
-	UserID      int64
-	ParentID    *int64
-	Title       string
-	Slug        string
-	Description string
-	Published   bool
-	IsDefault   bool
-	CoverPhoto  *Photo
-	PhotoCount  int
-	SubAlbums   []*Album
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID             int64
+	UserID         int64
+	ParentID       *int64
+	Title          string
+	Slug           string
+	Description    string
+	Published      bool
+	IsDefault      bool
+	DefaultChildID *int64
+	CoverPhoto     *Photo
+	PhotoCount     int
+	SubAlbums      []*Album
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // Photo represents a single uploaded image.
@@ -70,7 +71,7 @@ func CreateAlbum(db *sql.DB, a *Album) (int64, error) {
 // GetAlbumBySlug returns an album for a user by slug, including sub-albums.
 func GetAlbumBySlug(db *sql.DB, userID int64, slug string) (*Album, error) {
 	a, err := scanAlbum(db.QueryRow(
-		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id
 		 FROM gallery_albums WHERE user_id = ? AND slug = ?`, userID, slug,
 	))
 	if err != nil {
@@ -83,7 +84,7 @@ func GetAlbumBySlug(db *sql.DB, userID int64, slug string) (*Album, error) {
 // GetAlbumByID returns an album by its primary key, including sub-albums.
 func GetAlbumByID(db *sql.DB, id int64) (*Album, error) {
 	a, err := scanAlbum(db.QueryRow(
-		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id
 		 FROM gallery_albums WHERE id = ?`, id,
 	))
 	if err != nil {
@@ -98,16 +99,20 @@ func scanAlbum(row interface{ Scan(...any) error }) (*Album, error) {
 	var published, isDefault int
 	var parentID sql.NullInt64
 	var coverPhotoID sql.NullInt64
+	var defaultChildID sql.NullInt64
 	var createdAt, updatedAt int64
 	err := row.Scan(
 		&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
-		&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt,
+		&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt, &defaultChildID,
 	)
 	if err != nil {
 		return nil, err
 	}
 	if parentID.Valid {
 		a.ParentID = &parentID.Int64
+	}
+	if defaultChildID.Valid {
+		a.DefaultChildID = &defaultChildID.Int64
 	}
 	a.Published = published == 1
 	a.IsDefault = isDefault == 1
@@ -131,7 +136,7 @@ func SetAlbumPublished(db *sql.DB, albumID int64, published bool) error {
 func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWhere string) ([]*Album, error) {
 	q := `SELECT ga.id, ga.user_id, ga.parent_id, ga.title, ga.slug, ga.description,
 		        ga.published, ga.is_default, ga.cover_photo, ga.created_at, ga.updated_at,
-		        COUNT(ap.photo_id) as photo_count
+		        COUNT(ap.photo_id) as photo_count, ga.default_child_id
 		 FROM gallery_albums ga
 		 LEFT JOIN album_photos ap ON ap.album_id = ga.id
 		 WHERE ga.user_id = ?`
@@ -160,16 +165,20 @@ func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWh
 		var published, isDefault int
 		var parentID sql.NullInt64
 		var coverPhotoID sql.NullInt64
+		var defaultChildID sql.NullInt64
 		var createdAt, updatedAt int64
 		if err := rows.Scan(
 			&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
-			&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt, &a.PhotoCount,
+			&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt, &a.PhotoCount, &defaultChildID,
 		); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		if parentID.Valid {
 			a.ParentID = &parentID.Int64
+		}
+		if defaultChildID.Valid {
+			a.DefaultChildID = &defaultChildID.Int64
 		}
 		a.Published = published == 1
 		a.IsDefault = isDefault == 1
@@ -233,29 +242,10 @@ func SetAlbumCoverIfNone(db *sql.DB, albumID, photoID int64) error {
 
 // getDefaultAlbumRow scans a single row into an Album using the standard select columns.
 func getDefaultAlbumRow(db *sql.DB, userID int64) (*Album, error) {
-	var a Album
-	var published, isDefault int
-	var parentID sql.NullInt64
-	var coverPhotoID sql.NullInt64
-	var createdAt, updatedAt int64
-	err := db.QueryRow(
-		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at
+	return scanAlbum(db.QueryRow(
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id
 		 FROM gallery_albums WHERE user_id = ? AND is_default = 1 LIMIT 1`, userID,
-	).Scan(
-		&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
-		&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if parentID.Valid {
-		a.ParentID = &parentID.Int64
-	}
-	a.Published = published == 1
-	a.IsDefault = true
-	a.CreatedAt = time.Unix(createdAt, 0)
-	a.UpdatedAt = time.Unix(updatedAt, 0)
-	return &a, nil
+	))
 }
 
 // GetDefaultAlbum returns the user's default album, creating one named "Uploads" if none exists.
@@ -364,7 +354,7 @@ func ListAllPhotosByAlbum(db *sql.DB, albumID int64) ([]*Photo, error) {
 // ListSubAlbums returns direct children of a parent album.
 func ListSubAlbums(db *sql.DB, parentID int64) ([]*Album, error) {
 	rows, err := db.Query(
-		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id
 		 FROM gallery_albums WHERE parent_id = ? ORDER BY created_at ASC`, parentID,
 	)
 	if err != nil {
@@ -476,6 +466,29 @@ func FindOtherAlbumForPhoto(db *sql.DB, photoID int64, excludeAlbumIDs []int64) 
 		return 0, nil
 	}
 	return albumID, err
+}
+
+// SetAlbumDefaultChild sets or clears the default landing sub-album for a parent album.
+// When childID is non-nil, it validates that the child's parent_id equals albumID.
+func SetAlbumDefaultChild(db *sql.DB, albumID int64, childID *int64) error {
+	if childID != nil {
+		// Validate that the nominated child actually belongs to this parent.
+		var parentID sql.NullInt64
+		err := db.QueryRow(
+			`SELECT parent_id FROM gallery_albums WHERE id = ?`, *childID,
+		).Scan(&parentID)
+		if err != nil {
+			return fmt.Errorf("child album not found: %w", err)
+		}
+		if !parentID.Valid || parentID.Int64 != albumID {
+			return fmt.Errorf("album %d is not a child of album %d", *childID, albumID)
+		}
+	}
+	_, err := db.Exec(
+		`UPDATE gallery_albums SET default_child_id = ?, updated_at = unixepoch() WHERE id = ?`,
+		childID, albumID,
+	)
+	return err
 }
 
 // RehomePhoto updates a photo's primary album_id to the given album.

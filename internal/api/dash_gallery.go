@@ -370,6 +370,30 @@ func (a *App) DashPhotoDelete(w http.ResponseWriter, r *http.Request) {
 	a.respondJSON(w, http.StatusOK, map[string]string{"message": "photo deleted"})
 }
 
+// DashAlbumSetDefaultChild handles PATCH /api/v1/dashboard/gallery/albums/{id}/default-child.
+// Body: {"child_id": 123} to set, or {"child_id": null} to clear.
+func (a *App) DashAlbumSetDefaultChild(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	album, ok := a.getOwnedAlbum(w, r, user)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		ChildID *int64 `json:"child_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := models.SetAlbumDefaultChild(a.DB, album.ID, body.ChildID); err != nil {
+		a.respondError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func (a *App) getOwnedAlbum(w http.ResponseWriter, r *http.Request, user *models.User) (*models.Album, bool) {

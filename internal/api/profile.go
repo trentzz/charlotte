@@ -36,7 +36,7 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 	if profile.FeatureGallery {
 		photos, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 6)
 		out["recent_photos"] = toPhotoList(photos)
-		albums, _ := models.ListAlbumsByUser(a.DB, profile.ID, true)
+		albums, _ := models.ListTopLevelAlbumsByUser(a.DB, profile.ID, true)
 		out["albums"] = toAlbumList(albums)
 	} else {
 		out["recent_photos"] = []any{}
@@ -325,18 +325,20 @@ func toProjectList(projects []*models.Project) []projectJSON {
 }
 
 type albumJSON struct {
-	ID          int64       `json:"id"`
-	ParentID    *int64      `json:"parent_id,omitempty"`
-	Title       string      `json:"title"`
-	Slug        string      `json:"slug"`
-	Description string      `json:"description"`
-	Published   bool        `json:"published"`
-	IsDefault   bool        `json:"is_default"`
-	CoverPhoto  *photoJSON  `json:"cover_photo"`
-	PhotoCount  int         `json:"photo_count"`
-	SubAlbums   []albumJSON `json:"sub_albums,omitempty"`
-	CreatedAt   string      `json:"created_at"`
-	UpdatedAt   string      `json:"updated_at"`
+	ID               int64       `json:"id"`
+	ParentID         *int64      `json:"parent_id,omitempty"`
+	Title            string      `json:"title"`
+	Slug             string      `json:"slug"`
+	Description      string      `json:"description"`
+	Published        bool        `json:"published"`
+	IsDefault        bool        `json:"is_default"`
+	DefaultChildID   *int64      `json:"default_child_id,omitempty"`
+	DefaultChildSlug string      `json:"default_child_slug,omitempty"`
+	CoverPhoto       *photoJSON  `json:"cover_photo"`
+	PhotoCount       int         `json:"photo_count"`
+	SubAlbums        []albumJSON `json:"sub_albums,omitempty"`
+	CreatedAt        string      `json:"created_at"`
+	UpdatedAt        string      `json:"updated_at"`
 }
 
 func toAlbumJSON(a *models.Album) albumJSON {
@@ -346,17 +348,27 @@ func toAlbumJSON(a *models.Album) albumJSON {
 		cover = &c
 	}
 	aj := albumJSON{
-		ID:          a.ID,
-		ParentID:    a.ParentID,
-		Title:       a.Title,
-		Slug:        a.Slug,
-		Description: a.Description,
-		Published:   a.Published,
-		IsDefault:   a.IsDefault,
-		CoverPhoto:  cover,
-		PhotoCount:  a.PhotoCount,
-		CreatedAt:   a.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:   a.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		ID:             a.ID,
+		ParentID:       a.ParentID,
+		Title:          a.Title,
+		Slug:           a.Slug,
+		Description:    a.Description,
+		Published:      a.Published,
+		IsDefault:      a.IsDefault,
+		DefaultChildID: a.DefaultChildID,
+		CoverPhoto:     cover,
+		PhotoCount:     a.PhotoCount,
+		CreatedAt:      a.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:      a.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+	}
+	// Resolve the default child slug from the sub-albums list if available.
+	if a.DefaultChildID != nil {
+		for _, sub := range a.SubAlbums {
+			if sub.ID == *a.DefaultChildID {
+				aj.DefaultChildSlug = sub.Slug
+				break
+			}
+		}
 	}
 	if len(a.SubAlbums) > 0 {
 		aj.SubAlbums = toAlbumList(a.SubAlbums)

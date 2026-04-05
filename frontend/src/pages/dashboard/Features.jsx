@@ -3,6 +3,7 @@ import {
   Box, Typography, Switch, FormControlLabel, Button, Alert,
   CircularProgress, Paper, Stack, Divider,
 } from '@mui/material'
+import CheckIcon from '@mui/icons-material/Check'
 import client from '../../api/client.js'
 
 const FEATURE_LIST = [
@@ -17,8 +18,8 @@ export default function Features() {
   const [features, setFeatures] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
 
   useEffect(() => {
     client.get('/dashboard/features')
@@ -35,11 +36,11 @@ export default function Features() {
 
   async function handleSave() {
     setError(null)
-    setSuccess(null)
     setSaving(true)
     try {
       await client.put('/dashboard/features', features)
-      setSuccess('Features saved.')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save features.')
     } finally {
@@ -59,7 +60,6 @@ export default function Features() {
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
       <Stack spacing={1} sx={{ mb: 3 }}>
         {FEATURE_LIST.map((feat, i) => (
@@ -79,8 +79,14 @@ export default function Features() {
         ))}
       </Stack>
 
-      <Button variant="contained" onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving…' : 'Save features'}
+      <Button
+        variant="contained"
+        color={saved ? 'success' : 'primary'}
+        startIcon={saved ? <CheckIcon /> : null}
+        onClick={handleSave}
+        disabled={saving}
+      >
+        {saving ? 'Saving…' : saved ? 'Changes saved' : 'Save features'}
       </Button>
     </Box>
   )

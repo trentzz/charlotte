@@ -38,8 +38,10 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - **Many-to-many photo membership**: a photo can belong to multiple albums simultaneously. In the dashboard album view, use "Add existing" to pick any of your photos and add them to the current album without re-uploading. Photos are stored once in `photos`; membership tracked in the `album_photos` join table (migrations 20–22).
 - **Safe album deletion** (RC-01): when an album is deleted, any photo that still belongs to another album is re-homed rather than destroyed. Only photos exclusively in the deleted album have their files and DB rows removed. The join-table entries for the deleted album are always cleared.
 - **Remove from album**: each photo in the dashboard album view has a "Remove from album" action that removes it from the album without deleting the file.
-- **Dashboard album view tabs**: when an album has sub-albums, pill buttons appear at the top — "This album" (current album only), "All (inc. sub-albums)" (union of all photos), and one button per sub-album (navigates to that album).
+- **Dashboard album view tabs**: when an album has sub-albums, pill buttons appear at the top — "This album" (current album only), "All (inc. sub-albums)" (union of all photos), and one button per sub-album (navigates to that album). Each sub-album pill has a star icon button: filled star = current default landing view; outline star = click to set as default. Clicking the filled star clears the default.
+- **Default sub-album**: a parent album can designate one sub-album as its default landing view. When a visitor navigates to the parent album URL, the page automatically redirects to the default sub-album instead. Set via the star icon button next to each sub-album pill in the dashboard album view. Stored as `default_child_id` on the `gallery_albums` table (migration 32). API: `PATCH /api/v1/dashboard/gallery/albums/{id}/default-child` with body `{"child_id": 123}` or `{"child_id": null}` to clear. The `default_child_id` and `default_child_slug` fields are included in all album JSON responses.
 - **Public album navigation**: when a public album has sub-albums, pill buttons appear below the album header — "All" (default, shows all photos across this album and sub-albums), the parent album name, and one button per sub-album.
+- **Nav dropdown fix**: the Gallery dropdown in the nav bar only shows top-level albums. Sub-albums no longer appear in the dropdown.
 
 ### Recipes
 
@@ -103,7 +105,7 @@ User public pages have **one nav bar only** — the sticky white top nav. No sec
 - **Logo**: user's display name, links to their home page.
 - **Nav order**: Home | Blog ▾ | Projects ▾ | Gallery ▾ | Recipes ▾ | About
 - **Blog dropdown**: up to 5 most recent published posts + "See all posts →".
-- **Projects dropdown**: up to 5 most recent published projects + "See all →".
+- **Projects dropdown**: up to 5 most recent published projects, each linking directly to that project's detail page at `/u/{username}/projects/{slug}`.
 - **Gallery dropdown**: all published albums as direct links + "See all →". Albums are fetched from `GET /api/v1/u/{username}` and returned in the `albums` field alongside `recent_photos`.
 - **Recipes dropdown**: up to 5 most recent published recipes + "See all →".
 - **About**: plain link, no dropdown.

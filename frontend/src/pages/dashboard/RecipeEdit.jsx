@@ -4,7 +4,7 @@ import {
   Box, Typography, TextField, Button, Alert, CircularProgress,
   Stack, Divider, IconButton, Paper, List, ListItem, ListItemText,
   ListItemSecondaryAction, Dialog, DialogTitle, DialogContent, DialogActions,
-  Tooltip, Checkbox, Chip,
+  Tooltip, Checkbox, FormControlLabel, Switch,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -599,25 +599,18 @@ export default function RecipeEdit() {
           {isNew ? 'New recipe' : 'Edit recipe'}
         </Typography>
         {!isNew && (
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={handleTogglePublish}
-            disabled={toggling}
-            color={published ? 'warning' : 'success'}
-          >
-            {toggling ? '…' : published ? 'Unpublish' : 'Publish'}
-          </Button>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={published}
+                onChange={handleTogglePublish}
+                color="success"
+              />
+            }
+            label={published ? 'Published' : 'Draft'}
+          />
         )}
       </Box>
-      {!isNew && (
-        <Chip
-          label={published ? 'Published' : 'Draft'}
-          size="small"
-          color={published ? 'success' : 'default'}
-          sx={{ mb: 2 }}
-        />
-      )}
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 

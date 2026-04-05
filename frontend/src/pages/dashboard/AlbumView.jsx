@@ -3,15 +3,13 @@ import { useParams, Link as RouterLink } from 'react-router-dom'
 import {
   Box, Typography, Button, CircularProgress, Alert,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Link,
-  Chip, Stack, Checkbox, Tooltip, TextField,
+  Chip, Stack, Checkbox, Tooltip, TextField, FormControlLabel, Switch,
 } from '@mui/material'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder'
 import LibraryAddIcon from '@mui/icons-material/LibraryAdd'
-import VisibilityIcon from '@mui/icons-material/Visibility'
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import Masonry from 'react-masonry-css'
@@ -317,11 +315,16 @@ export default function AlbumView() {
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
           {album && (
-            <Tooltip title={album.published ? 'Unpublish album' : 'Publish album'}>
-              <IconButton size="small" onClick={handleTogglePublish}>
-                {album.published ? <VisibilityIcon /> : <VisibilityOffIcon />}
-              </IconButton>
-            </Tooltip>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={Boolean(album.published)}
+                  onChange={handleTogglePublish}
+                  color="success"
+                />
+              }
+              label={album.published ? 'Published' : 'Draft'}
+            />
           )}
           {album && !album.is_default && (
             <Tooltip title="Set as default upload album">
@@ -377,16 +380,36 @@ export default function AlbumView() {
             onClick={() => setView('all')}
             clickable
           />
-          {subAlbums.map((sub) => (
-            <Chip
-              key={sub.id}
-              label={sub.title}
-              variant="outlined"
-              component={RouterLink}
-              to={`/dashboard/gallery/albums/${sub.id}`}
-              clickable
-            />
-          ))}
+          {subAlbums.map((sub) => {
+            const isDefault = album?.default_child_id === sub.id
+            return (
+              <Box key={sub.id} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}>
+                <Chip
+                  label={sub.title}
+                  variant="outlined"
+                  component={RouterLink}
+                  to={`/dashboard/gallery/albums/${sub.id}`}
+                  clickable
+                />
+                <Tooltip title={isDefault ? 'Default landing view' : 'Set as default landing view'}>
+                  <IconButton
+                    size="small"
+                    onClick={async () => {
+                      try {
+                        const childID = isDefault ? null : sub.id
+                        await client.patch(`/dashboard/gallery/albums/${album.id}/default-child`, { child_id: childID })
+                        setAlbum((a) => ({ ...a, default_child_id: childID }))
+                      } catch {
+                        setError('Failed to update default sub-album.')
+                      }
+                    }}
+                  >
+                    {isDefault ? <StarIcon fontSize="small" color="primary" /> : <StarBorderIcon fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )
+          })}
         </Stack>
       )}
 
