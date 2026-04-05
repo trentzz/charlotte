@@ -1,12 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Box, Typography, Button, IconButton, Paper, Divider, Chip,
+  Box, Typography, Button, Paper, Divider, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions, Checkbox,
   List, ListItem, ListItemText, ListItemIcon, Alert, CircularProgress,
   TextField,
 } from '@mui/material'
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import CheckIcon from '@mui/icons-material/Check'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import {
@@ -56,13 +54,23 @@ function SortableSectionCard({ sectionKey, label, customLabel, onLabelChange, pi
   }
 
   return (
-    <Paper ref={setNodeRef} style={style} variant="outlined" sx={{ px: 2, py: 1.5 }}>
+    <Paper
+      ref={setNodeRef}
+      style={style}
+      elevation={0}
+      sx={{
+        px: 2, py: 1.5,
+        bgcolor: 'grey.900',
+        color: 'common.white',
+        borderRadius: 1.5,
+      }}
+    >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         {/* Drag handle */}
         <Box
           {...attributes}
           {...listeners}
-          sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'text.disabled', mr: 0.5, touchAction: 'none' }}
+          sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'grey.500', mr: 0.5, touchAction: 'none' }}
         >
           <DragIndicatorIcon sx={{ fontSize: 20 }} />
         </Box>
@@ -74,7 +82,19 @@ function SortableSectionCard({ sectionKey, label, customLabel, onLabelChange, pi
           value={customLabel}
           onChange={(e) => onLabelChange(sectionKey, e.target.value)}
           placeholder={label}
-          slotProps={{ input: { sx: { fontWeight: 500, fontSize: '0.9375rem' } } }}
+          slotProps={{
+            input: {
+              sx: {
+                fontWeight: 600,
+                fontSize: '0.9375rem',
+                color: 'common.white',
+                '&::placeholder': { color: 'grey.400', opacity: 1 },
+                '&:before': { borderBottomColor: 'grey.600' },
+                '&:after': { borderBottomColor: 'common.white' },
+                '&:hover:not(.Mui-disabled):before': { borderBottomColor: 'grey.400' },
+              },
+            },
+          }}
           sx={{ flexGrow: 1 }}
         />
 
@@ -90,9 +110,66 @@ function SortableSectionCard({ sectionKey, label, customLabel, onLabelChange, pi
             variant={pinnedSlugs.length > 0 ? 'filled' : 'outlined'}
             color={pinnedSlugs.length > 0 ? 'primary' : 'default'}
             onClick={onPickerOpen}
-            sx={{ cursor: 'pointer' }}
+            sx={{
+              cursor: 'pointer',
+              ...(pinnedSlugs.length === 0 && {
+                borderColor: 'grey.600',
+                color: 'grey.400',
+              }),
+            }}
           />
         )}
+      </Box>
+    </Paper>
+  )
+}
+
+function SortablePageCard({ page }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: page.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <Paper
+      ref={setNodeRef}
+      style={style}
+      elevation={0}
+      sx={{
+        px: 2, py: 1.5,
+        bgcolor: 'grey.900',
+        color: 'common.white',
+        borderRadius: 1.5,
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box
+          {...attributes}
+          {...listeners}
+          sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'grey.500', mr: 0.5, touchAction: 'none' }}
+        >
+          <DragIndicatorIcon sx={{ fontSize: 20 }} />
+        </Box>
+        <Typography variant="body1" fontWeight={600} sx={{ flexGrow: 1, color: 'common.white' }}>
+          {page.title}
+        </Typography>
+        <Chip
+          label={page.published ? 'Published' : 'Draft'}
+          size="small"
+          color={page.published ? 'success' : 'default'}
+          variant="outlined"
+          sx={!page.published ? { borderColor: 'grey.600', color: 'grey.400' } : {}}
+        />
       </Box>
     </Paper>
   )
@@ -164,18 +241,12 @@ export default function NavConfig() {
     }, 800)
   }
 
-  function movePageUp(i) {
-    if (i === 0) return
-    const next = [...customPages]
-    ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
-    setCustomPages(next)
-    save(sections, pinned, next, labels)
-  }
-
-  function movePageDown(i) {
-    if (i === customPages.length - 1) return
-    const next = [...customPages]
-    ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
+  function handlePageDragEnd(event) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = customPages.findIndex((p) => p.id === active.id)
+    const newIndex = customPages.findIndex((p) => p.id === over.id)
+    const next = arrayMove(customPages, oldIndex, newIndex)
     setCustomPages(next)
     save(sections, pinned, next, labels)
   }
@@ -243,45 +314,17 @@ export default function NavConfig() {
             Custom page order
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Set the display order for your custom pages in the navigation.
+            Drag to set the display order for your custom pages in the navigation.
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {customPages.map((page, i) => (
-              <Paper key={page.id} variant="outlined" sx={{ px: 2, py: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', mr: 0.5 }}>
-                    <IconButton
-                      size="small"
-                      onClick={() => movePageUp(i)}
-                      disabled={i === 0}
-                      sx={{ p: 0.25 }}
-                      aria-label={`Move ${page.title} up`}
-                    >
-                      <ArrowUpwardIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => movePageDown(i)}
-                      disabled={i === customPages.length - 1}
-                      sx={{ p: 0.25 }}
-                      aria-label={`Move ${page.title} down`}
-                    >
-                      <ArrowDownwardIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Box>
-                  <Typography variant="body1" fontWeight={500} sx={{ flexGrow: 1 }}>
-                    {page.title}
-                  </Typography>
-                  <Chip
-                    label={page.published ? 'Published' : 'Draft'}
-                    size="small"
-                    color={page.published ? 'success' : 'default'}
-                    variant="outlined"
-                  />
-                </Box>
-              </Paper>
-            ))}
-          </Box>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handlePageDragEnd}>
+            <SortableContext items={customPages.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {customPages.map((page) => (
+                  <SortablePageCard key={page.id} page={page} />
+                ))}
+              </Box>
+            </SortableContext>
+          </DndContext>
         </Box>
       )}
 
