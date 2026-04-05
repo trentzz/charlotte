@@ -14,10 +14,42 @@ type IngredientGroup struct {
 	Items []string `json:"items"`
 }
 
+// MethodStep is a single method step, optionally with a countdown timer duration.
+// It serialises as {"text": "...", "timer_seconds": 0} in JSON.
+// For backwards compatibility it also unmarshals from a plain JSON string.
+type MethodStep struct {
+	Text         string `json:"text"`
+	TimerSeconds int    `json:"timer_seconds,omitempty"`
+}
+
+// UnmarshalJSON lets MethodStep accept either a plain string or an object.
+func (s *MethodStep) UnmarshalJSON(b []byte) error {
+	// Try object form first.
+	type plain struct {
+		Text         string `json:"text"`
+		TimerSeconds int    `json:"timer_seconds"`
+	}
+	var obj plain
+	if err := json.Unmarshal(b, &obj); err == nil && obj.Text != "" {
+		s.Text = obj.Text
+		s.TimerSeconds = obj.TimerSeconds
+		return nil
+	}
+	// Fall back to plain string.
+	var str string
+	if err := json.Unmarshal(b, &str); err != nil {
+		return err
+	}
+	s.Text = str
+	return nil
+}
+
 // MethodGroup is a named section of method steps (title may be empty).
+// TimerSeconds is an optional countdown timer duration for the whole section.
 type MethodGroup struct {
-	Title string   `json:"title"`
-	Steps []string `json:"steps"`
+	Title        string       `json:"title"`
+	TimerSeconds int          `json:"timer_seconds,omitempty"`
+	Steps        []MethodStep `json:"steps"`
 }
 
 // Variation is a named recipe variation with substitution notes.
@@ -213,6 +245,33 @@ func ListRecipesByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Recipe,
 		}
 	}
 	return recipes, nil
+}
+
+// SearchRecipesByUser returns published recipes matching q in title or description.
+func SearchRecipesByUser(db *sql.DB, userID int64, q string) ([]*Recipe, error) {
+	like := "%" + q + "%"
+	rows, err := db.Query(`
+		SELECT id, user_id, title, slug, description,
+		       ingredients, steps, published, created_at, updated_at,
+		       ingredients_json, method_json, variations_json
+		FROM recipes
+		WHERE user_id = ? AND published = 1 AND (title LIKE ? OR description LIKE ?)
+		ORDER BY updated_at DESC LIMIT 10`,
+		userID, like, like,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var recipes []*Recipe
+	for rows.Next() {
+		r, err := scanRecipe(rows)
+		if err != nil {
+			continue
+		}
+		recipes = append(recipes, r)
+	}
+	return recipes, rows.Err()
 }
 
 // UpdateRecipe saves edits to an existing recipe.

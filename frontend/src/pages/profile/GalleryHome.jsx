@@ -3,16 +3,17 @@ import { useParams, Link as RouterLink } from 'react-router-dom'
 import {
   Container, Typography, Box, Grid, Card, CardActionArea,
   CardMedia, CardContent, CircularProgress, Alert, Divider,
+  Tooltip, IconButton,
 } from '@mui/material'
+import EditIcon from '@mui/icons-material/Edit'
 import client from '../../api/client.js'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 function AlbumCard({ album, username }) {
-  const cover = album.cover_path
-    ? (album.cover_path.startsWith('/') ? album.cover_path : `/${album.cover_path}`)
-    : null
+  const cover = album.cover_url || null
 
   return (
-    <Card elevation={1} sx={{ borderRadius: 0 }}>
+    <Card elevation={0} sx={{ borderRadius: 2, background: 'transparent' }}>
       <CardActionArea component={RouterLink} to={`/u/${username}/gallery/${album.slug}`}>
         {cover && (
           <CardMedia
@@ -20,21 +21,16 @@ function AlbumCard({ album, username }) {
             height={200}
             image={cover}
             alt={album.title}
-            sx={{ borderRadius: 0, objectFit: 'cover' }}
+            sx={{ objectFit: 'cover', borderRadius: 1 }}
           />
         )}
-        <CardContent>
+        <CardContent sx={{ textAlign: 'center', px: 0 }}>
           <Typography variant="h6" fontWeight={600}>
             {album.title}
           </Typography>
           {album.photo_count !== undefined && (
             <Typography variant="body2" color="text.secondary">
               {album.photo_count} {album.photo_count === 1 ? 'photo' : 'photos'}
-            </Typography>
-          )}
-          {album.description && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {album.description}
             </Typography>
           )}
         </CardContent>
@@ -45,9 +41,12 @@ function AlbumCard({ album, username }) {
 
 export default function GalleryHome() {
   const { username } = useParams()
+  const { user } = useAuth()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  const isOwner = user?.username?.toLowerCase() === username?.toLowerCase()
 
   useEffect(() => {
     client.get(`/u/${username}/gallery`)
@@ -73,9 +72,18 @@ export default function GalleryHome() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
-      <Typography variant="h3" fontWeight={700} gutterBottom>
-        Gallery
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <Typography variant="h3" fontWeight={700} gutterBottom sx={{ flex: 1, mb: 0 }}>
+          Gallery
+        </Typography>
+        {isOwner && (
+          <Tooltip title="Edit gallery">
+            <IconButton component={RouterLink} to="/dashboard/gallery" size="small">
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
       <Divider sx={{ mb: 4 }} />
 
       {albums.length === 0 ? (

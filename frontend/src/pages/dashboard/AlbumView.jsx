@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, Link as RouterLink } from 'react-router-dom'
 import {
   Box, Typography, Button, CircularProgress, Alert,
@@ -171,28 +171,62 @@ export default function AlbumView() {
   const [subAlbumDialogOpen, setSubAlbumDialogOpen] = useState(false)
   const [subAlbumTitle, setSubAlbumTitle] = useState('')
   const [subAlbumSaving, setSubAlbumSaving] = useState(false)
-  // 'own' = just this album, 'all' = this album + sub-albums
+  // 'own' = just this album, 'all' = this album + sub-albums, or a sub-album ID (number)
   const [view, setView] = useState('own')
+  // Photos for the currently selected sub-album tab
+  const [subPhotos, setSubPhotos] = useState([])
+  const [subLoading, setSubLoading] = useState(false)
+  // Parent album info for breadcrumb (only set when this is a sub-album)
+  const [parentAlbum, setParentAlbum] = useState(null)
 
-  const displayedPhotos = view === 'all' ? allPhotos : photos
+  const displayedPhotos = typeof view === 'number' ? subPhotos
+    : view === 'all' ? allPhotos
+    : photos
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const res = await client.get(`/dashboard/gallery/albums/${id}`)
-      setAlbum(res.data.album)
+      const a = res.data.album
+      setAlbum(a)
       setPhotos(res.data.photos || [])
       setAllPhotos(res.data.all_photos || [])
+      // If this is a sub-album, fetch the parent for the breadcrumb.
+      if (a?.parent_id) {
+        client.get(`/dashboard/gallery/albums/${a.parent_id}`)
+          .then((r) => setParentAlbum(r.data.album || null))
+          .catch(() => setParentAlbum({ id: a.parent_id, title: 'Parent album' }))
+      } else {
+        setParentAlbum(null)
+      }
     } catch {
       setError('Failed to load album.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
-  useEffect(() => { load() }, [id])
+  useEffect(() => { load() }, [load])
 
   // Reset view when navigating to a different album.
-  useEffect(() => { setView('own') }, [id])
+  useEffect(() => {
+    setView('own')
+    setSubPhotos([])
+    setParentAlbum(null)
+  }, [id])
+
+  async function selectSubView(sub) {
+    if (view === sub.id) return
+    setView(sub.id)
+    setSubLoading(true)
+    try {
+      const res = await client.get(`/dashboard/gallery/albums/${sub.id}`)
+      setSubPhotos(res.data.photos || [])
+    } catch {
+      setSubPhotos([])
+    } finally {
+      setSubLoading(false)
+    }
+  }
 
   async function handleUpload(e) {
     const files = Array.from(e.target.files || [])
@@ -361,9 +395,21 @@ export default function AlbumView() {
         </Stack>
       </Box>
 
-      <Link component={RouterLink} to="/dashboard/gallery" underline="hover" sx={{ fontSize: 13, mb: 2, display: 'block' }}>
-        ← Back to albums
-      </Link>
+      {/* Breadcrumb: show parent link for sub-albums, otherwise link back to album list */}
+      {parentAlbum ? (
+        <Link
+          component={RouterLink}
+          to={`/dashboard/gallery/albums/${parentAlbum.id}`}
+          underline="hover"
+          sx={{ fontSize: 13, mb: 2, display: 'block' }}
+        >
+          ← Back to {parentAlbum.title}
+        </Link>
+      ) : (
+        <Link component={RouterLink} to="/dashboard/gallery" underline="hover" sx={{ fontSize: 13, mb: 2, display: 'block' }}>
+          ← Back to albums
+        </Link>
+      )}
 
       {/* Sub-album / view filter tabs */}
       {hasSubAlbums && (
@@ -382,13 +428,13 @@ export default function AlbumView() {
           />
           {subAlbums.map((sub) => {
             const isDefault = album?.default_child_id === sub.id
+            const isActive = view === sub.id
             return (
               <Box key={sub.id} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}>
                 <Chip
                   label={sub.title}
-                  variant="outlined"
-                  component={RouterLink}
-                  to={`/dashboard/gallery/albums/${sub.id}`}
+                  variant={isActive ? 'filled' : 'outlined'}
+                  onClick={() => selectSubView(sub)}
                   clickable
                 />
                 <Tooltip title={isDefault ? 'Default landing view' : 'Set as default landing view'}>
@@ -415,7 +461,11 @@ export default function AlbumView() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {displayedPhotos.length === 0 ? (
+      {subLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : displayedPhotos.length === 0 ? (
         <Typography color="text.secondary">No photos yet. Upload some to get started.</Typography>
       ) : (
         <>

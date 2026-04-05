@@ -11,48 +11,7 @@ import client from '../api/client.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ThemeModeProvider, useThemeMode } from '../context/ThemeModeContext.jsx'
 import buildProfileTheme from '../theme/buildProfileTheme.js'
-
-// Decorative spider-web SVG component.
-function SpiderWeb({ size = 200, sx }) {
-  const degrees = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
-  const radii = [20, 40, 60, 80, 95]
-
-  return (
-    <Box
-      component="svg"
-      viewBox="0 0 200 200"
-      sx={{ width: size, height: size, ...sx }}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="0.8"
-    >
-      {/* Radial lines from centre */}
-      {degrees.map((deg) => {
-        const rad = (deg * Math.PI) / 180
-        return (
-          <line
-            key={deg}
-            x1="100" y1="100"
-            x2={100 + 95 * Math.cos(rad)}
-            y2={100 + 95 * Math.sin(rad)}
-          />
-        )
-      })}
-      {/* Concentric web rings */}
-      {radii.map((r) => (
-        <polygon
-          key={r}
-          points={degrees
-            .map((deg) => {
-              const rad = (deg * Math.PI) / 180
-              return `${100 + r * Math.cos(rad)},${100 + r * Math.sin(rad)}`
-            })
-            .join(' ')}
-        />
-      ))}
-    </Box>
-  )
-}
+import SpiderWeb from '../components/SpiderWeb.jsx'
 
 // Default site theme matching the server-side DefaultSiteTheme values.
 const DEFAULT_SITE_THEME = {

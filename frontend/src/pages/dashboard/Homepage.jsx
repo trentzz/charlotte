@@ -2,6 +2,8 @@ import React, { Component, useCallback, useEffect, useRef, useState } from 'reac
 import GridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 import {
   Box, Typography, Paper, IconButton, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, List, ListItemButton, ListItemText,
@@ -119,18 +121,23 @@ function WidgetCard({ widget, onRemove, available }) {
     ? available?.photos?.find((p) => p.id === widget.content_id)?.url
     : null
 
+  const albumData = widget.type === 'album' && widget.content_id
+    ? available?.albums?.find((a) => a.id === widget.content_id)
+    : null
+  const albumCoverURL = albumData?.cover_photo?.url || null
+  const albumName = albumData?.title || label
+
   return (
     <Box
       sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        border: '1px solid',
-        borderColor: 'divider',
         borderRadius: 1.5,
         overflow: 'hidden',
         bgcolor: 'background.paper',
-        boxShadow: 1,
+        boxShadow: 'none',
+        border: 'none',
         position: 'relative',
       }}
     >
@@ -184,6 +191,22 @@ function WidgetCard({ widget, onRemove, available }) {
             alt={label}
             sx={{ width: '100%', flex: 1, objectFit: 'cover', borderRadius: 1 }}
           />
+        ) : albumCoverURL ? (
+          <>
+            <Box
+              component="img"
+              src={albumCoverURL}
+              alt={albumName}
+              sx={{ width: '100%', flex: 1, objectFit: 'cover', borderRadius: 1 }}
+            />
+            <Typography
+              variant="caption"
+              align="center"
+              sx={{ display: 'block', pt: 0.25, color: 'text.secondary', fontWeight: 500 }}
+            >
+              {albumName}
+            </Typography>
+          </>
         ) : (
           <>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -291,8 +314,10 @@ function TextInputDialog({ open, widgetType, onConfirm, onClose }) {
 
   function handleConfirm() {
     if (widgetType === 'text') {
-      if (!content.trim()) return
-      onConfirm({ content: content.trim() })
+      // ReactQuill returns '<p><br></p>' for an empty editor.
+      const stripped = content.replace(/<[^>]*>/g, '').trim()
+      if (!stripped) return
+      onConfirm({ content })
     } else {
       if (!url.trim()) return
       onConfirm({ url: url.trim(), label: label.trim() || url.trim() })
@@ -304,15 +329,22 @@ function TextInputDialog({ open, widgetType, onConfirm, onClose }) {
       <DialogTitle>{widgetType === 'text' ? 'Add text block' : 'Add link'}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
         {widgetType === 'text' ? (
-          <TextField
-            label="Content"
-            multiline
-            rows={4}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            autoFocus
-            fullWidth
-          />
+          <Box>
+            <ReactQuill
+              theme="snow"
+              value={content}
+              onChange={setContent}
+              modules={{
+                toolbar: [
+                  ['bold', 'italic'],
+                  [{ list: 'bullet' }, { list: 'ordered' }],
+                  ['link'],
+                  ['clean'],
+                ],
+              }}
+              style={{ height: 160, marginBottom: 42 }}
+            />
+          </Box>
         ) : (
           <>
             <TextField
@@ -383,7 +415,7 @@ function Homepage() {
       .then((res) => {
         const { layout, ...rest } = res.data
         setWidgets(layout?.widgets || [])
-        setAvailable(rest)
+        setAvailable({ ...rest, blog_posts: rest.posts || [] })
       })
       .catch((err) => {
         const msg = err.response?.data?.error || 'Failed to load homepage data.'

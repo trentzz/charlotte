@@ -19,6 +19,7 @@ type Album struct {
 	IsDefault      bool
 	DefaultChildID *int64
 	CoverPhoto     *Photo
+	FirstPhoto     *Photo // first photo in the album, used as fallback thumbnail
 	PhotoCount     int
 	SubAlbums      []*Album
 	CreatedAt      time.Time
@@ -201,7 +202,31 @@ func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWh
 			albums[c.idx].CoverPhoto = photo
 		}
 	}
+	// For albums with no explicit cover but at least one photo, load the first
+	// photo so callers can use it as a fallback thumbnail.
+	for i, a := range albums {
+		if a.CoverPhoto == nil && a.PhotoCount > 0 {
+			photo, err := GetFirstPhotoInAlbum(db, a.ID)
+			if err == nil {
+				albums[i].FirstPhoto = photo
+			}
+		}
+	}
 	return albums, nil
+}
+
+// GetFirstPhotoInAlbum returns the first photo in an album ordered by sort_order
+// then created_at. Returns sql.ErrNoRows when the album has no photos.
+func GetFirstPhotoInAlbum(db *sql.DB, albumID int64) (*Photo, error) {
+	return scanPhoto(db.QueryRow(
+		`SELECT p.id, p.user_id, p.album_id, p.filename, p.caption,
+		        p.mime_type, p.size_bytes, p.width, p.height, p.created_at
+		 FROM photos p
+		 JOIN album_photos ap ON ap.photo_id = p.id
+		 WHERE ap.album_id = ?
+		 ORDER BY ap.sort_order ASC, ap.created_at ASC
+		 LIMIT 1`, albumID,
+	))
 }
 
 // ListAlbumsByUser returns all albums for a user with photo counts.
@@ -213,6 +238,33 @@ func ListAlbumsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Album, e
 // ListTopLevelAlbumsByUser returns albums with no parent (top-level only).
 func ListTopLevelAlbumsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Album, error) {
 	return listAlbumsByUserWhere(db, userID, publishedOnly, "AND ga.parent_id IS NULL")
+}
+
+// SearchAlbumsByUser returns published top-level albums matching q in title or description.
+func SearchAlbumsByUser(db *sql.DB, userID int64, q string) ([]*Album, error) {
+	like := "%" + q + "%"
+	rows, err := db.Query(`
+		SELECT id, user_id, parent_id, title, slug, description, published, is_default,
+		       cover_photo, created_at, updated_at, default_child_id
+		FROM gallery_albums
+		WHERE user_id = ? AND published = 1 AND parent_id IS NULL
+		  AND (title LIKE ? OR description LIKE ?)
+		ORDER BY created_at DESC LIMIT 10`,
+		userID, like, like,
+	)
+	if err != nil {
+		return nil, err
+	}
+	var albums []*Album
+	for rows.Next() {
+		a, err := scanAlbum(rows)
+		if err != nil {
+			continue
+		}
+		albums = append(albums, a)
+	}
+	rows.Close()
+	return albums, rows.Err()
 }
 
 // DeleteAlbum removes an album. Photos are cascade-deleted by SQLite.

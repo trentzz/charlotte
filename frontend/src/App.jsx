@@ -23,6 +23,7 @@ import GalleryAlbum from './pages/profile/GalleryAlbum.jsx'
 import RecipesIndex from './pages/profile/RecipesIndex.jsx'
 import RecipePost from './pages/profile/RecipePost.jsx'
 import Projects from './pages/profile/Projects.jsx'
+import CustomPage from './pages/profile/CustomPage.jsx'
 
 // Dashboard pages
 import Overview from './pages/dashboard/Overview.jsx'
@@ -38,6 +39,9 @@ import Recipes from './pages/dashboard/Recipes.jsx'
 import RecipeEdit from './pages/dashboard/RecipeEdit.jsx'
 import DashProjects from './pages/dashboard/Projects.jsx'
 import Homepage from './pages/dashboard/Homepage.jsx'
+import CustomPages from './pages/dashboard/CustomPages.jsx'
+import CustomPageEdit from './pages/dashboard/CustomPageEdit.jsx'
+import NavConfig from './pages/dashboard/NavConfig.jsx'
 
 // Admin pages
 import AdminUsers from './pages/admin/Users.jsx'
@@ -82,6 +86,7 @@ export default function App() {
               <Route path="recipes/:slug" element={<RecipePost />} />
               <Route path="projects" element={<Projects />} />
               <Route path="projects/:slug" element={<Projects />} />
+              <Route path="pages/:slug" element={<CustomPage />} />
             </Route>
 
             {/* Dashboard / settings routes */}
@@ -99,6 +104,9 @@ export default function App() {
               <Route path="/dashboard/recipes/:id" element={<RecipeEdit />} />
               <Route path="/dashboard/projects" element={<DashProjects />} />
               <Route path="/dashboard/homepage" element={<Homepage />} />
+              <Route path="/dashboard/custom-pages" element={<CustomPages />} />
+              <Route path="/dashboard/custom-pages/:id" element={<CustomPageEdit />} />
+              <Route path="/dashboard/nav-config" element={<NavConfig />} />
 
               {/* Admin routes */}
               <Route path="/admin/users" element={<AdminUsers />} />

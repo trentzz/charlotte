@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import {
   Box, Typography, Button, Grid, Card, CardContent, CardMedia,
   CardActions, IconButton, CircularProgress, Alert, Dialog,
@@ -13,8 +14,10 @@ import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
 import CheckIcon from '@mui/icons-material/Check'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import client from '../../api/client.js'
 import GalleryPhotoPicker from '../../components/GalleryPhotoPicker.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 // Lazy-load react-quill to avoid SSR issues.
 let ReactQuill = null
@@ -41,6 +44,7 @@ const QUILL_MODULES = {
 // ProjectEditor — full-page rich editor for a single project.
 function ProjectEditor({ projectId, onBack }) {
   const isNew = projectId === 'new'
+  const { user } = useAuth()
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -50,6 +54,7 @@ function ProjectEditor({ projectId, onBack }) {
     linked_post_ids: [],
     published: false,
   })
+  const [slug, setSlug] = useState('')
   const [linkedPosts, setLinkedPosts] = useState([]) // hydrated Post objects for display
   const [allPosts, setAllPosts] = useState([])
   const [loading, setLoading] = useState(!isNew)
@@ -90,6 +95,7 @@ function ProjectEditor({ projectId, onBack }) {
           linked_post_ids: (proj.linked_posts || []).map((p) => p.id),
           published: Boolean(proj.published),
         })
+        setSlug(proj.slug || '')
         setLinkedPosts(proj.linked_posts || [])
       })
       .catch(() => setError('Failed to load project.'))
@@ -154,9 +160,12 @@ function ProjectEditor({ projectId, onBack }) {
       if (isNew) {
         const res = await client.post('/dashboard/projects', form)
         const created = res.data.project || res.data
+        setSlug(created.slug || '')
         onBack(created)
       } else {
-        await client.put(`/dashboard/projects/${projectId}`, form)
+        const res = await client.put(`/dashboard/projects/${projectId}`, form)
+        const updated = res.data?.project || res.data || {}
+        if (updated.slug) setSlug(updated.slug)
         setSaved(true)
         setTimeout(() => setSaved(false), 1500)
         onBack(null)
@@ -184,7 +193,11 @@ function ProjectEditor({ projectId, onBack }) {
         <Box sx={{ flexGrow: 1 }} />
         <FormControlLabel
           control={<Switch name="published" checked={Boolean(form.published)} onChange={handle} />}
-          label={form.published ? 'Published' : 'Draft'}
+          label={
+            <Typography component="span" sx={{ display: 'inline-block', minWidth: '5rem' }}>
+              {form.published ? 'Published' : 'Draft'}
+            </Typography>
+          }
         />
       </Box>
 
@@ -326,7 +339,7 @@ function ProjectEditor({ projectId, onBack }) {
 
         <Divider />
 
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <Button
             variant="contained"
             onClick={handleSave}
@@ -336,6 +349,16 @@ function ProjectEditor({ projectId, onBack }) {
           >
             {saving ? 'Saving…' : saved ? 'Changes saved' : isNew ? 'Create project' : 'Save changes'}
           </Button>
+          {!isNew && slug && user?.username && (
+            <Button
+              variant="outlined"
+              component={RouterLink}
+              to={`/u/${user.username}/projects/${slug}`}
+              endIcon={<OpenInNewIcon />}
+            >
+              View page
+            </Button>
+          )}
           <Button onClick={() => onBack(null)} disabled={saving}>
             Cancel
           </Button>

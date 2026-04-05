@@ -114,14 +114,17 @@ type User struct {
 	FeatureAbout      bool
 	FeatureGallery    bool
 	FeatureRecipes    bool
-	FeatureProjects   bool
-	ShowOnHomepage    bool
-	EmailVerified     bool
-	EmailVerifyToken  string
-	Theme             UserTheme
-	Links             []UserLink
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	FeatureProjects      bool
+	ShowOnHomepage       bool
+	EmailVerified        bool
+	EmailVerifyToken     string
+	Theme                UserTheme
+	Links                []UserLink
+	CustomNavMode        string
+	CustomNavGroupLabel  string
+	NavConfig            string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 // DisplayOrUsername returns DisplayName if set, otherwise Username.
@@ -165,6 +168,7 @@ func scanUser(row interface {
 		&linksJSON, &createdAt, &updatedAt,
 		&featureProjects, &themeJSON, &showOnHomepage,
 		&emailVerified, &emailVerifyToken,
+		&u.CustomNavMode, &u.CustomNavGroupLabel, &u.NavConfig,
 	)
 	if err != nil {
 		return nil, err
@@ -183,6 +187,12 @@ func scanUser(row interface {
 		_ = json.Unmarshal([]byte(themeJSON), &theme)
 	}
 	u.Theme = theme
+	if u.CustomNavMode == "" {
+		u.CustomNavMode = "grouped"
+	}
+	if u.CustomNavGroupLabel == "" {
+		u.CustomNavGroupLabel = "More"
+	}
 	u.CreatedAt = time.Unix(createdAt, 0)
 	u.UpdatedAt = time.Unix(updatedAt, 0)
 	return &u, nil
@@ -193,7 +203,8 @@ const userSelect = `SELECT id, username, email, password_hash,
 	feature_blog, feature_about, feature_gallery, feature_recipes,
 	links, created_at, updated_at,
 	feature_projects, theme_json, show_on_homepage,
-	email_verified, email_verify_token FROM users`
+	email_verified, email_verify_token,
+	custom_nav_mode, custom_nav_group_label, nav_config FROM users`
 
 // CreateUser inserts a new user and returns the assigned ID.
 func CreateUser(db *sql.DB, u *User) (int64, error) {
@@ -413,6 +424,18 @@ func ConfirmEmailVerified(db *sql.DB, userID int64) error {
 	return err
 }
 
+// UpdateUserCustomNav saves the custom navigation mode and group label for a user.
+func UpdateUserCustomNav(db *sql.DB, userID int64, mode, label string) error {
+	if mode != "individual" && mode != "grouped" {
+		mode = "grouped"
+	}
+	_, err := db.Exec(
+		`UPDATE users SET custom_nav_mode=?, custom_nav_group_label=? WHERE id=?`,
+		mode, label, userID,
+	)
+	return err
+}
+
 // UpdateUserEmail updates the email address for a user and resets verification.
 func UpdateUserEmail(db *sql.DB, userID int64, email string) error {
 	_, err := db.Exec(
@@ -439,6 +462,12 @@ func GetDiskUsageByUser(db *sql.DB) (map[int64]int64, error) {
 		usage[uid] = sz
 	}
 	return usage, rows.Err()
+}
+
+// UpdateUserNavConfig saves the nav configuration JSON for a user.
+func UpdateUserNavConfig(db *sql.DB, userID int64, configJSON string) error {
+	_, err := db.Exec(`UPDATE users SET nav_config=? WHERE id=?`, configJSON, userID)
+	return err
 }
 
 func boolToInt(b bool) int {

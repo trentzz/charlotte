@@ -119,11 +119,10 @@ function ProfileWidget({ widget, profile }) {
 
 function TextWidget({ widget }) {
   return (
-    <Box sx={{ p: 2, height: '100%', overflow: 'hidden' }}>
-      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 10, WebkitBoxOrient: 'vertical' }}>
-        {widget.content}
-      </Typography>
-    </Box>
+    <Box
+      sx={{ p: 2, height: '100%', overflow: 'hidden', '& p': { margin: 0 }, '& ul, & ol': { pl: 2, margin: 0 } }}
+      dangerouslySetInnerHTML={{ __html: widget.content }}
+    />
   )
 }
 
@@ -293,15 +292,10 @@ function PublicWidgetCard({ widget, profile, username, navData }) {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        border: '1px solid',
-        borderColor: 'divider',
         borderRadius: 1.5,
         overflow: 'hidden',
-        bgcolor: 'background.paper',
-        boxShadow: 1,
       }}
     >
-      <Box sx={{ height: 4, bgcolor: colour, flexShrink: 0 }} />
       <Box sx={{ flex: 1, overflow: 'hidden' }}>
         {renderContent()}
       </Box>

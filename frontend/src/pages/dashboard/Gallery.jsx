@@ -176,9 +176,6 @@ export default function Gallery() {
                           variant="outlined"
                         />
                       )}
-                      {!album.published && (
-                        <Chip label="Unpublished" size="small" color="default" variant="outlined" />
-                      )}
                     </Box>
                     {album.description && (
                       <Typography variant="body2" color="text.secondary">{album.description}</Typography>

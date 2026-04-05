@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom'
 import {
   Box, Typography, TextField, Button, Alert, CircularProgress,
   Stack, Divider, IconButton, Paper, List, ListItem, ListItemText,
@@ -12,6 +12,8 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import CheckIcon from '@mui/icons-material/Check'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import { useAuth } from '../../context/AuthContext.jsx'
 import {
   DndContext,
   closestCenter,
@@ -137,36 +139,126 @@ function IngredientGroupEditor({ group, groupIndex, globalOffset, onChange, onRe
   )
 }
 
+// Parse "mm:ss" or "m:ss" string into total seconds. Returns 0 if invalid.
+function parseMmSs(str) {
+  const parts = String(str || '').split(':')
+  if (parts.length !== 2) return 0
+  const m = parseInt(parts[0], 10)
+  const s = parseInt(parts[1], 10)
+  if (isNaN(m) || isNaN(s)) return 0
+  return m * 60 + s
+}
+
+// Format total seconds as "m:ss".
+function formatMmSs(totalSeconds) {
+  const s = Math.max(0, totalSeconds || 0)
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
+// TimerInput — small "m:ss" editable text field for optional step/section timers.
+function TimerInput({ value, onChange }) {
+  const [draft, setDraft] = useState(() => value > 0 ? formatMmSs(value) : '')
+
+  function commit() {
+    const secs = parseMmSs(draft)
+    onChange(secs)
+    setDraft(secs > 0 ? formatMmSs(secs) : '')
+  }
+
+  return (
+    <TextField
+      size="small"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit() } }}
+      placeholder="0:00"
+      inputProps={{ style: { width: 52, fontVariantNumeric: 'tabular-nums', textAlign: 'center' } }}
+      sx={{ width: 72 }}
+      title="Timer (m:ss). Leave blank or 0:00 for no timer."
+    />
+  )
+}
+
+// ── Sortable step item with optional timer ─────────────────────────────────────
+
+function SortableStepItem({ id, label, timerSeconds, onRemove, onTimerChange }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <ListItem ref={setNodeRef} style={style} sx={{ pl: 0, pr: 0 }} dense>
+      <Box
+        {...attributes}
+        {...listeners}
+        sx={{ cursor: 'grab', color: 'text.disabled', mr: 1, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+      >
+        <DragIndicatorIcon fontSize="small" />
+      </Box>
+      <ListItemText primary={label} sx={{ mr: 1 }} />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+        <TimerInput value={timerSeconds} onChange={onTimerChange} />
+        <IconButton size="small" onClick={onRemove}>
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </ListItem>
+  )
+}
+
 // ── Method group editor ────────────────────────────────────────────────────────
+
+// Steps are stored as objects: { text: string, timer_seconds?: number }.
+// Legacy plain strings are accepted but converted on load.
+function normaliseStep(step) {
+  if (typeof step === 'string') return { text: step, timer_seconds: 0 }
+  return { text: step.text || '', timer_seconds: step.timer_seconds || 0 }
+}
 
 function MethodGroupEditor({ group, groupIndex, onChange, onRemoveGroup }) {
   const [input, setInput] = useState('')
+
+  // Normalise steps to objects on first use.
+  const steps = (group.steps || []).map(normaliseStep)
 
   const sensors = useSensors(useSensor(PointerSensor))
 
   function addStep() {
     const val = input.trim()
     if (!val) return
-    onChange(groupIndex, { ...group, steps: [...group.steps, val] })
+    onChange(groupIndex, { ...group, steps: [...steps, { text: val, timer_seconds: 0 }] })
     setInput('')
   }
 
   function removeStep(i) {
-    onChange(groupIndex, { ...group, steps: group.steps.filter((_, idx) => idx !== i) })
+    onChange(groupIndex, { ...group, steps: steps.filter((_, idx) => idx !== i) })
+  }
+
+  function updateStepTimer(i, secs) {
+    const updated = steps.map((s, idx) => idx === i ? { ...s, timer_seconds: secs } : s)
+    onChange(groupIndex, { ...group, steps: updated })
   }
 
   function handleDragEnd(event) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = group.steps.indexOf(active.id)
-    const newIndex = group.steps.indexOf(over.id)
+    const stepIds = steps.map((s, i) => `meth-${groupIndex}-${i}-${s.text}`)
+    const oldIndex = stepIds.indexOf(active.id)
+    const newIndex = stepIds.indexOf(over.id)
     if (oldIndex === -1 || newIndex === -1) return
-    onChange(groupIndex, { ...group, steps: arrayMove(group.steps, oldIndex, newIndex) })
+    onChange(groupIndex, { ...group, steps: arrayMove(steps, oldIndex, newIndex) })
   }
 
-  const stepIds = group.steps.map((step, i) => `meth-${groupIndex}-${i}-${step}`)
+  const stepIds = steps.map((s, i) => `meth-${groupIndex}-${i}-${s.text}`)
 
-  // Compute global step number offset for display.
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
@@ -177,6 +269,13 @@ function MethodGroupEditor({ group, groupIndex, onChange, onRemoveGroup }) {
           onChange={(e) => onChange(groupIndex, { ...group, title: e.target.value })}
           sx={{ flex: 1 }}
         />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>Section timer</Typography>
+          <TimerInput
+            value={group.timer_seconds || 0}
+            onChange={(secs) => onChange(groupIndex, { ...group, timer_seconds: secs })}
+          />
+        </Box>
         <IconButton size="small" color="error" onClick={() => onRemoveGroup(groupIndex)}>
           <DeleteIcon fontSize="small" />
         </IconButton>
@@ -185,12 +284,14 @@ function MethodGroupEditor({ group, groupIndex, onChange, onRemoveGroup }) {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={stepIds} strategy={verticalListSortingStrategy}>
           <List dense disablePadding>
-            {group.steps.map((step, i) => (
-              <SortableItem
+            {steps.map((step, i) => (
+              <SortableStepItem
                 key={stepIds[i]}
                 id={stepIds[i]}
-                label={`${i + 1}. ${step}`}
+                label={`${i + 1}. ${step.text}`}
+                timerSeconds={step.timer_seconds || 0}
                 onRemove={() => removeStep(i)}
+                onTimerChange={(secs) => updateStepTimer(i, secs)}
               />
             ))}
           </List>
@@ -367,6 +468,7 @@ function GalleryPhotoPicker({ open, onClose, onPick }) {
 export default function RecipeEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const isNew = id === 'new'
 
   const [form, setForm] = useState({
@@ -378,6 +480,7 @@ export default function RecipeEdit() {
     servings: '',
     notes: '',
   })
+  const [slug, setSlug] = useState('')
   const [published, setPublished] = useState(false)
   const [ingredientsGroups, setIngredientsGroups] = useState([{ title: '', items: [] }])
   const [methodGroups, setMethodGroups] = useState([{ title: '', steps: [] }])
@@ -408,6 +511,7 @@ export default function RecipeEdit() {
           notes: r.notes || '',
         })
         setPublished(Boolean(r.published))
+        setSlug(r.slug || '')
 
         // Prefer structured groups; fall back to flat arrays from legacy data.
         if (r.ingredients_groups && r.ingredients_groups.length > 0) {
@@ -427,14 +531,17 @@ export default function RecipeEdit() {
         if (r.method_groups && r.method_groups.length > 0) {
           setMethodGroups(r.method_groups.map((g) => ({
             title: g.title || '',
-            steps: g.steps || [],
+            timer_seconds: g.timer_seconds || 0,
+            steps: (g.steps || []).map((s) =>
+              typeof s === 'string' ? { text: s, timer_seconds: 0 } : { text: s.text || '', timer_seconds: s.timer_seconds || 0 }
+            ),
           })))
         } else {
           const flat = r.method_steps || r.steps || []
           const flatArr = Array.isArray(flat)
             ? flat
             : flat.split('\n').filter(Boolean)
-          setMethodGroups([{ title: '', steps: flatArr }])
+          setMethodGroups([{ title: '', timer_seconds: 0, steps: flatArr.map((s) => typeof s === 'string' ? { text: s, timer_seconds: 0 } : s) }])
         }
 
         if (r.variations && r.variations.length > 0) {
@@ -564,10 +671,14 @@ export default function RecipeEdit() {
       }
       if (isNew) {
         const res = await client.post('/dashboard/recipes', payload)
-        const newId = res.data.id || res.data.recipe?.id
+        const created = res.data || {}
+        const newId = created.id
+        setSlug(created.slug || '')
         navigate(`/dashboard/recipes/${newId}`, { replace: true })
       } else {
-        await client.put(`/dashboard/recipes/${id}`, payload)
+        const res = await client.put(`/dashboard/recipes/${id}`, payload)
+        const updated = res.data || {}
+        if (updated.slug) setSlug(updated.slug)
         setSaved(true)
         setTimeout(() => setSaved(false), 1500)
       }
@@ -607,7 +718,11 @@ export default function RecipeEdit() {
                 color="success"
               />
             }
-            label={published ? 'Published' : 'Draft'}
+            label={
+              <Typography component="span" sx={{ display: 'inline-block', minWidth: '5rem' }}>
+                {published ? 'Published' : 'Draft'}
+              </Typography>
+            }
           />
         )}
       </Box>
@@ -833,7 +948,7 @@ export default function RecipeEdit() {
           fullWidth
         />
 
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', pb: 12 }}>
           <Button
             variant="contained"
             onClick={handleSave}
@@ -843,6 +958,16 @@ export default function RecipeEdit() {
           >
             {saving ? 'Saving…' : saved ? 'Changes saved' : isNew ? 'Create recipe' : 'Save changes'}
           </Button>
+          {!isNew && slug && user?.username && (
+            <Button
+              variant="outlined"
+              component={RouterLink}
+              to={`/u/${user.username}/recipes/${slug}`}
+              endIcon={<OpenInNewIcon />}
+            >
+              View page
+            </Button>
+          )}
           <Button onClick={() => navigate('/dashboard/recipes')} disabled={saving}>
             Cancel
           </Button>

@@ -132,6 +132,28 @@ func DeleteProject(db *sql.DB, id int64) (*Project, error) {
 	return p, err
 }
 
+// SearchProjectsByUser returns published projects matching q in title, description, or body.
+func SearchProjectsByUser(db *sql.DB, userID int64, q string) ([]*Project, error) {
+	like := "%" + q + "%"
+	rows, err := db.Query(
+		projectSelect+` WHERE user_id = ? AND published = 1 AND (title LIKE ? OR description LIKE ? OR body LIKE ?) ORDER BY display_order ASC LIMIT 10`,
+		userID, like, like, like,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var projects []*Project
+	for rows.Next() {
+		p, err := scanProject(rows)
+		if err != nil {
+			continue
+		}
+		projects = append(projects, p)
+	}
+	return projects, rows.Err()
+}
+
 // ListLinkedPosts returns the blog posts linked to a project, ordered by creation date.
 func ListLinkedPosts(db *sql.DB, projectID int64) ([]*Post, error) {
 	const q = `SELECT id, user_id, title, slug, body, published, created_at, updated_at

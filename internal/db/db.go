@@ -38,7 +38,7 @@ func Open(dataDir string) (*sql.DB, error) {
 		return nil, fmt.Errorf("ping sqlite: %w", err)
 	}
 
-	if err := migrate(db); err != nil {
+	if err := Migrate(db); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 

@@ -25,18 +25,16 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 
 	if profile.FeatureBlog {
 		posts, _ := models.ListPostsByUser(a.DB, profile.ID, true)
-		if len(posts) > 3 {
-			posts = posts[:3]
-		}
 		out["recent_posts"] = toPostList(posts)
 	} else {
 		out["recent_posts"] = []any{}
 	}
 
 	if profile.FeatureGallery {
-		photos, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 6)
+		photos, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 50)
 		out["recent_photos"] = toPhotoList(photos)
-		albums, _ := models.ListTopLevelAlbumsByUser(a.DB, profile.ID, true)
+		// Use all albums (not just top-level) so sub-albums pinned as homepage widgets can be matched.
+		albums, _ := models.ListAlbumsByUser(a.DB, profile.ID, true)
 		out["albums"] = toAlbumList(albums)
 	} else {
 		out["recent_photos"] = []any{}
@@ -45,9 +43,6 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 
 	if profile.FeatureRecipes {
 		recipes, _ := models.ListRecipesByUser(a.DB, profile.ID, true)
-		if len(recipes) > 3 {
-			recipes = recipes[:3]
-		}
 		out["recent_recipes"] = toRecipeList(recipes)
 	} else {
 		out["recent_recipes"] = []any{}
@@ -55,9 +50,6 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 
 	if profile.FeatureProjects {
 		projs, _ := models.ListProjectsByUser(a.DB, profile.ID, !isOwner)
-		if len(projs) > 6 {
-			projs = projs[:6]
-		}
 		out["recent_projects"] = toProjectList(projs)
 	} else {
 		out["recent_projects"] = []any{}
@@ -65,6 +57,18 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 
 	layout, _ := models.GetHomepageLayout(a.DB, profile.ID)
 	out["homepage"] = layout
+
+	pages, _ := models.ListCustomPagesByUser(a.DB, profile.ID, !isOwner)
+	out["custom_pages"] = toCustomPageList(pages)
+	out["custom_nav"] = map[string]any{
+		"mode":  profile.CustomNavMode,
+		"label": profile.CustomNavGroupLabel,
+	}
+	navCfg := profile.NavConfig
+	if navCfg == "" {
+		navCfg = "{}"
+	}
+	out["nav_config"] = navCfg
 
 	a.respondJSON(w, http.StatusOK, out)
 }
@@ -146,9 +150,15 @@ type ingredientGroupJSON struct {
 	Items []string `json:"items"`
 }
 
+type methodStepJSON struct {
+	Text         string `json:"text"`
+	TimerSeconds int    `json:"timer_seconds,omitempty"`
+}
+
 type methodGroupJSON struct {
-	Title string   `json:"title"`
-	Steps []string `json:"steps"`
+	Title        string           `json:"title"`
+	TimerSeconds int              `json:"timer_seconds,omitempty"`
+	Steps        []methodStepJSON `json:"steps"`
 }
 
 type variationJSON struct {
@@ -226,11 +236,14 @@ func toRecipeJSON(r *models.Recipe) recipeJSON {
 
 	methGroups := make([]methodGroupJSON, 0, len(r.MethodGroups))
 	for _, g := range r.MethodGroups {
-		steps := g.Steps
-		if steps == nil {
-			steps = []string{}
+		stepJSONs := make([]methodStepJSON, 0, len(g.Steps))
+		for _, s := range g.Steps {
+			stepJSONs = append(stepJSONs, methodStepJSON{Text: s.Text, TimerSeconds: s.TimerSeconds})
 		}
-		methGroups = append(methGroups, methodGroupJSON{Title: g.Title, Steps: steps})
+		if stepJSONs == nil {
+			stepJSONs = []methodStepJSON{}
+		}
+		methGroups = append(methGroups, methodGroupJSON{Title: g.Title, TimerSeconds: g.TimerSeconds, Steps: stepJSONs})
 	}
 
 	variations := make([]variationJSON, 0, len(r.Variations))
@@ -335,6 +348,7 @@ type albumJSON struct {
 	DefaultChildID   *int64      `json:"default_child_id,omitempty"`
 	DefaultChildSlug string      `json:"default_child_slug,omitempty"`
 	CoverPhoto       *photoJSON  `json:"cover_photo"`
+	CoverURL         string      `json:"cover_url"` // explicit cover URL, or first photo URL as fallback
 	PhotoCount       int         `json:"photo_count"`
 	SubAlbums        []albumJSON `json:"sub_albums,omitempty"`
 	CreatedAt        string      `json:"created_at"`
@@ -343,9 +357,13 @@ type albumJSON struct {
 
 func toAlbumJSON(a *models.Album) albumJSON {
 	var cover *photoJSON
+	var coverURL string
 	if a.CoverPhoto != nil {
 		c := toPhotoJSON(a.CoverPhoto)
 		cover = &c
+		coverURL = c.URL
+	} else if a.FirstPhoto != nil {
+		coverURL = photoURL(a.FirstPhoto.UserID, a.FirstPhoto.Filename)
 	}
 	aj := albumJSON{
 		ID:             a.ID,
@@ -357,6 +375,7 @@ func toAlbumJSON(a *models.Album) albumJSON {
 		IsDefault:      a.IsDefault,
 		DefaultChildID: a.DefaultChildID,
 		CoverPhoto:     cover,
+		CoverURL:       coverURL,
 		PhotoCount:     a.PhotoCount,
 		CreatedAt:      a.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:      a.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),

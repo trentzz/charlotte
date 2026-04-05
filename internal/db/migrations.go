@@ -296,10 +296,51 @@ var migrations = []string{
 
 	// 32: default landing sub-album for a parent album
 	`ALTER TABLE gallery_albums ADD COLUMN default_child_id INTEGER REFERENCES gallery_albums(id) ON DELETE SET NULL`,
+
+	// 33: custom pages
+	`CREATE TABLE IF NOT EXISTS custom_pages (
+		id          INTEGER PRIMARY KEY,
+		user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		kind        TEXT    NOT NULL,
+		format      TEXT    NOT NULL CHECK(format IN ('freeform','list','structured')),
+		slug        TEXT    NOT NULL,
+		title       TEXT    NOT NULL DEFAULT '',
+		description TEXT    NOT NULL DEFAULT '',
+		body        TEXT    NOT NULL DEFAULT '',
+		data_json   TEXT    NOT NULL DEFAULT '{}',
+		published   INTEGER NOT NULL DEFAULT 0,
+		sort_order  INTEGER NOT NULL DEFAULT 0,
+		created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+		updated_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+		UNIQUE(user_id, slug)
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_custom_pages_user_id ON custom_pages(user_id)`,
+	`CREATE TABLE IF NOT EXISTS custom_page_entries (
+		id          INTEGER PRIMARY KEY,
+		page_id     INTEGER NOT NULL REFERENCES custom_pages(id) ON DELETE CASCADE,
+		user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		title       TEXT    NOT NULL DEFAULT '',
+		subtitle    TEXT    NOT NULL DEFAULT '',
+		rating      INTEGER NOT NULL DEFAULT 0,
+		status      TEXT    NOT NULL DEFAULT '',
+		entry_date  INTEGER,
+		fields_json TEXT    NOT NULL DEFAULT '{}',
+		sort_order  INTEGER NOT NULL DEFAULT 0,
+		created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+		updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_custom_page_entries_page_id ON custom_page_entries(page_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_custom_page_entries_user_id ON custom_page_entries(user_id)`,
+	`ALTER TABLE users ADD COLUMN custom_nav_mode TEXT NOT NULL DEFAULT 'grouped'`,
+	`ALTER TABLE users ADD COLUMN custom_nav_group_label TEXT NOT NULL DEFAULT 'More'`,
+	`ALTER TABLE custom_pages ADD COLUMN nav_pinned INTEGER NOT NULL DEFAULT 0`,
+
+	// 34: per-user nav configuration stored as JSON
+	`ALTER TABLE users ADD COLUMN nav_config TEXT NOT NULL DEFAULT '{}'`,
 }
 
-// migrate runs any migrations that have not yet been applied, in order.
-func migrate(db *sql.DB) error {
+// Migrate runs any migrations that have not yet been applied, in order.
+func Migrate(db *sql.DB) error {
 	// Ensure the tracking table exists first (it is migration index 0).
 	if _, err := db.Exec(migrations[0]); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)

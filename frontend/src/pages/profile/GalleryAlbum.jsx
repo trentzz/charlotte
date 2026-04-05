@@ -1,66 +1,74 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, Link as RouterLink, useNavigate } from 'react-router-dom'
+import { useParams, Link as RouterLink } from 'react-router-dom'
 import {
   Container, Typography, Box, CircularProgress, Alert,
-  Divider, Link, Button, Stack,
+  Divider, Link, Button, Stack, Tooltip, IconButton,
 } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
+import EditIcon from '@mui/icons-material/Edit'
 import client from '../../api/client.js'
 import PhotoGrid from '../../components/PhotoGrid.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function GalleryAlbum() {
   const { username, album } = useParams()
-  const navigate = useNavigate()
+  const { user } = useAuth()
   const theme = useTheme()
+  const isOwner = user?.username?.toLowerCase() === username?.toLowerCase()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  // 'own' | 'all' — 'all' fetches with ?filter=all
-  const [filter, setFilter] = useState('all')
-  const [filteredPhotos, setFilteredPhotos] = useState(null)
-  const [filterLoading, setFilterLoading] = useState(false)
+
+  // activeSubId: null = show all photos, otherwise the sub-album ID whose photos are shown
+  const [activeSubId, setActiveSubId] = useState(null)
+  // subPhotos: photos fetched for the currently active sub-album
+  const [subPhotos, setSubPhotos] = useState(null)
+  const [subLoading, setSubLoading] = useState(false)
 
   useEffect(() => {
     setData(null)
-    setFilteredPhotos(null)
-    setFilter('all')
+    setActiveSubId(null)
+    setSubPhotos(null)
     setLoading(true)
     client.get(`/u/${username}/gallery/${album}?filter=all`)
       .then((res) => {
         const d = res.data
-        // If this is a parent album with a default child, navigate straight to
-        // that sub-album so the visitor lands on the intended view.
-        if (
-          d?.album?.default_child_slug &&
-          (d?.sub_albums?.length ?? 0) > 0 &&
-          !d?.album?.parent_id
-        ) {
-          navigate(`/u/${username}/gallery/${d.album.default_child_slug}`, { replace: true })
-          return
-        }
         setData(d)
+        // If a default child is configured, select it immediately without navigating away.
+        if (d?.album?.default_child_id && (d?.sub_albums?.length ?? 0) > 0) {
+          const defaultSub = (d.sub_albums || []).find(
+            (s) => s.id === d.album.default_child_id,
+          )
+          if (defaultSub) {
+            setActiveSubId(defaultSub.id)
+            // Fetch that sub-album's photos straight away.
+            client.get(`/u/${username}/gallery/${defaultSub.slug}`)
+              .then((r) => setSubPhotos(r.data.photos || []))
+              .catch(() => setSubPhotos([]))
+          }
+        }
       })
       .catch(() => setError('Album not found.'))
       .finally(() => setLoading(false))
-  }, [username, album, navigate])
+  }, [username, album])
 
-  async function switchFilter(newFilter) {
-    if (newFilter === filter) return
-    setFilter(newFilter)
-    if (newFilter === 'all') {
-      setFilteredPhotos(null)
-      return
-    }
-    // 'own' — fetch without ?filter=all
-    setFilterLoading(true)
+  async function selectSub(sub) {
+    if (activeSubId === sub.id) return
+    setActiveSubId(sub.id)
+    setSubLoading(true)
     try {
-      const res = await client.get(`/u/${username}/gallery/${album}`)
-      setFilteredPhotos(res.data.photos || [])
+      const res = await client.get(`/u/${username}/gallery/${sub.slug}`)
+      setSubPhotos(res.data.photos || [])
     } catch {
-      // fall back to showing all photos
+      setSubPhotos([])
     } finally {
-      setFilterLoading(false)
+      setSubLoading(false)
     }
+  }
+
+  function selectAll() {
+    setActiveSubId(null)
+    setSubPhotos(null)
   }
 
   if (loading) return (
@@ -78,15 +86,29 @@ export default function GalleryAlbum() {
   const albumData = data?.album
   const subAlbums = data?.sub_albums || []
   const hasSubAlbums = subAlbums.length > 0
-  const parentAlbum = data?.parent_album || null
-  const isSubAlbum = !!parentAlbum
-  const photos = filteredPhotos !== null ? filteredPhotos : (data?.photos || [])
+
+  // Determine which photos to display.
+  const photos = activeSubId !== null && subPhotos !== null
+    ? subPhotos
+    : (data?.photos || [])
   const photoCount = photos.length
 
   return (
     <Box sx={{ py: 6 }}>
       {/* Editorial header — centred, display font */}
-      <Box sx={{ textAlign: 'center', mb: 4, px: 2 }}>
+      <Box sx={{ textAlign: 'center', mb: 4, px: 2, position: 'relative' }}>
+        {isOwner && (
+          <Tooltip title="Edit gallery">
+            <IconButton
+              component={RouterLink}
+              to="/dashboard/gallery"
+              size="small"
+              sx={{ position: 'absolute', top: 0, right: 8 }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
         <Typography
           variant="h2"
           sx={{
@@ -115,62 +137,24 @@ export default function GalleryAlbum() {
         )}
       </Box>
 
-      {/* Sub-album navigation when viewing a parent album */}
-      {hasSubAlbums && !isSubAlbum && (
+      {/* Sub-album tabs — inline, no navigation */}
+      {hasSubAlbums && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
           <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
             <Button
-              variant={filter === 'all' ? 'contained' : 'outlined'}
+              variant={activeSubId === null ? 'contained' : 'outlined'}
               size="small"
-              onClick={() => switchFilter('all')}
+              onClick={selectAll}
               sx={{ borderRadius: 4 }}
             >
               All
-            </Button>
-            <Button
-              variant={filter === 'own' ? 'contained' : 'outlined'}
-              size="small"
-              onClick={() => switchFilter('own')}
-              sx={{ borderRadius: 4 }}
-            >
-              {albumData?.title}
             </Button>
             {subAlbums.map((sub) => (
               <Button
                 key={sub.id}
-                variant="outlined"
+                variant={activeSubId === sub.id ? 'contained' : 'outlined'}
                 size="small"
-                component={RouterLink}
-                to={`/u/${username}/gallery/${sub.slug}`}
-                sx={{ borderRadius: 4 }}
-              >
-                {sub.title}
-              </Button>
-            ))}
-          </Stack>
-        </Box>
-      )}
-
-      {/* Sibling navigation when viewing a sub-album */}
-      {isSubAlbum && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Button
-              variant="outlined"
-              size="small"
-              component={RouterLink}
-              to={`/u/${username}/gallery/${parentAlbum.slug}`}
-              sx={{ borderRadius: 4 }}
-            >
-              All
-            </Button>
-            {(parentAlbum.sub_albums || []).map((sub) => (
-              <Button
-                key={sub.id}
-                variant={sub.slug === album ? 'contained' : 'outlined'}
-                size="small"
-                component={RouterLink}
-                to={`/u/${username}/gallery/${sub.slug}`}
+                onClick={() => selectSub(sub)}
                 sx={{ borderRadius: 4 }}
               >
                 {sub.title}
@@ -183,7 +167,7 @@ export default function GalleryAlbum() {
       {/* Thin editorial divider */}
       <Divider sx={{ mb: 3, mx: { xs: 2, md: 6 } }} />
 
-      {filterLoading ? (
+      {subLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress />
         </Box>

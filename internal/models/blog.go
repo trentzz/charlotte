@@ -236,6 +236,28 @@ func GetPostTags(db *sql.DB, postID int64) ([]string, error) {
 	return tags, rows.Err()
 }
 
+// SearchPostsByUser returns published posts matching q in title or body.
+func SearchPostsByUser(db *sql.DB, userID int64, q string) ([]*Post, error) {
+	like := "%" + q + "%"
+	rows, err := db.Query(
+		postSelect+` WHERE user_id = ? AND published = 1 AND (title LIKE ? OR body LIKE ?) ORDER BY created_at DESC LIMIT 10`,
+		userID, like, like,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var posts []*Post
+	for rows.Next() {
+		p, err := scanPost(rows)
+		if err != nil {
+			continue
+		}
+		posts = append(posts, p)
+	}
+	return posts, rows.Err()
+}
+
 // ListAllPosts returns all posts across all users for admin use.
 func ListAllPosts(db *sql.DB) ([]*Post, error) {
 	rows, err := db.Query(postSelect + ` ORDER BY created_at DESC`)
