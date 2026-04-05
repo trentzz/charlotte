@@ -77,7 +77,7 @@ function ColourPickerBlock({ label, h, s, l, onChange }) {
   const css = hslStr(h, s, l)
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1, minWidth: 200 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       <Typography variant="subtitle2" fontWeight={600}>{label}</Typography>
       <HslColorPicker color={colour} onChange={handleChange} style={{ width: '100%' }} />
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
@@ -355,7 +355,7 @@ export default function Appearance() {
       </Tabs>
 
       {colourTab === 0 && (
-        <Box sx={{ display: 'flex', gap: 4, mb: 3, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4, mb: 3 }}>
           <ColourPickerBlock
             label="Accent colour"
             h={theme.accent_h}
@@ -388,7 +388,7 @@ export default function Appearance() {
       )}
 
       {colourTab === 1 && (
-        <Box sx={{ display: 'flex', gap: 4, mb: 3, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4, mb: 3 }}>
           <ColourPickerBlock
             label="Dark accent colour"
             h={theme.dark_accent_h}
