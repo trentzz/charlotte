@@ -101,20 +101,21 @@ func DefaultTheme() UserTheme {
 
 // User represents a registered account.
 type User struct {
-	ID             int64
-	Username       string
-	Email          string
-	PasswordHash   string
-	DisplayName    string
-	Bio            string
-	AvatarPath     string
-	Role           Role
-	Status         Status
+	ID              int64
+	Username        string
+	Email           string
+	PasswordHash    string
+	DisplayName     string
+	Bio             string
+	AvatarPath      string
+	Role            Role
+	Status          Status
 	FeatureBlog     bool
 	FeatureAbout    bool
 	FeatureGallery  bool
 	FeatureRecipes  bool
 	FeatureProjects bool
+	ShowOnHomepage  bool
 	Theme           UserTheme
 	Links           []UserLink
 	CreatedAt       time.Time
@@ -148,6 +149,7 @@ func scanUser(row interface {
 	var linksJSON string
 	var themeJSON string
 	var featureProjects int
+	var showOnHomepage int
 	var createdAt, updatedAt int64
 
 	err := row.Scan(
@@ -156,7 +158,7 @@ func scanUser(row interface {
 		&u.Role, &u.Status,
 		&u.FeatureBlog, &u.FeatureAbout, &u.FeatureGallery, &u.FeatureRecipes,
 		&linksJSON, &createdAt, &updatedAt,
-		&featureProjects, &themeJSON,
+		&featureProjects, &themeJSON, &showOnHomepage,
 	)
 	if err != nil {
 		return nil, err
@@ -166,6 +168,7 @@ func scanUser(row interface {
 		u.Links = nil
 	}
 	u.FeatureProjects = featureProjects == 1
+	u.ShowOnHomepage = showOnHomepage == 1
 	theme := DefaultTheme()
 	if themeJSON != "" && themeJSON != "{}" {
 		_ = json.Unmarshal([]byte(themeJSON), &theme)
@@ -180,7 +183,7 @@ const userSelect = `SELECT id, username, email, password_hash,
 	display_name, bio, avatar_path, role, status,
 	feature_blog, feature_about, feature_gallery, feature_recipes,
 	links, created_at, updated_at,
-	feature_projects, theme_json FROM users`
+	feature_projects, theme_json, show_on_homepage FROM users`
 
 // CreateUser inserts a new user and returns the assigned ID.
 func CreateUser(db *sql.DB, u *User) (int64, error) {
@@ -230,6 +233,17 @@ func ListActiveUsers(db *sql.DB) ([]*User, error) {
 	return scanUsers(rows)
 }
 
+// ListVisibleUsers returns active users who have opted in to appear on the
+// landing page (show_on_homepage = 1), ordered by username.
+func ListVisibleUsers(db *sql.DB) ([]*User, error) {
+	rows, err := db.Query(userSelect+` WHERE status = 'active' AND show_on_homepage = 1 ORDER BY username`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanUsers(rows)
+}
+
 // ListAllUsers returns every user ordered by created_at desc. Used by the admin panel.
 func ListAllUsers(db *sql.DB) ([]*User, error) {
 	rows, err := db.Query(userSelect + ` ORDER BY created_at DESC`)
@@ -252,7 +266,8 @@ func scanUsers(rows *sql.Rows) ([]*User, error) {
 	return users, rows.Err()
 }
 
-// UpdateUser saves profile fields (display_name, bio, avatar_path, links, updated_at).
+// UpdateUser saves profile fields (display_name, bio, avatar_path, links,
+// show_on_homepage, updated_at).
 func UpdateUser(db *sql.DB, u *User) error {
 	linksJSON, err := json.Marshal(u.Links)
 	if err != nil {
@@ -260,9 +275,11 @@ func UpdateUser(db *sql.DB, u *User) error {
 	}
 	_, err = db.Exec(`UPDATE users SET
 		display_name = ?, bio = ?, avatar_path = ?, links = ?,
+		show_on_homepage = ?,
 		updated_at = unixepoch()
 		WHERE id = ?`,
-		u.DisplayName, u.Bio, u.AvatarPath, string(linksJSON), u.ID,
+		u.DisplayName, u.Bio, u.AvatarPath, string(linksJSON),
+		boolToInt(u.ShowOnHomepage), u.ID,
 	)
 	return err
 }

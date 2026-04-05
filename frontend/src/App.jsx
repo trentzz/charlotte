@@ -44,6 +44,7 @@ import Homepage from './pages/dashboard/Homepage.jsx'
 import AdminUsers from './pages/admin/Users.jsx'
 import AdminContent from './pages/admin/Content.jsx'
 import AdminSettings from './pages/admin/Settings.jsx'
+import AdminAppearance from './pages/admin/Appearance.jsx'
 
 // Default site-level theme (neutral; per-user profile pages use their own theme).
 const siteTheme = createTheme({
@@ -104,6 +105,7 @@ export default function App() {
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/content" element={<AdminContent />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/appearance" element={<AdminAppearance />} />
             </Route>
 
             {/* Fallback */}

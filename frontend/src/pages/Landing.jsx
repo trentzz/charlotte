@@ -54,14 +54,31 @@ function SpiderWeb({ size = 200, sx }) {
   )
 }
 
+// Default site theme matching the server-side DefaultSiteTheme values.
+const DEFAULT_SITE_THEME = {
+  accent_h: 340, accent_s: 50, accent_l: 35,
+  bg_h: 38, bg_s: 30, bg_l: 97,
+  text_h: 220, text_s: 20, text_l: 15,
+  heading_h: 220, heading_s: 25, heading_l: 10,
+  dark_accent_h: 36, dark_accent_s: 70, dark_accent_l: 58,
+  dark_bg_h: 222, dark_bg_s: 22, dark_bg_l: 11,
+  dark_text_h: 36, dark_text_s: 15, dark_text_l: 88,
+  dark_heading_h: 36, dark_heading_s: 20, dark_heading_l: 95,
+  font_display: 'Playfair Display',
+  font_body: 'Playfair Display',
+  font_ui: 'Inter',
+  font_size: 16,
+  nav_font_size: 13,
+}
+
 // Inner page that can access ThemeModeContext.
 function LandingInner({ settings, users, error }) {
   const { user } = useAuth()
   const { mode, toggleMode } = useThemeMode()
 
-  // Build the admin theme, falling back to defaults if none is set.
-  const adminTheme = settings?.admin_theme ?? null
-  const theme = buildProfileTheme(adminTheme, mode)
+  // Use the site theme from settings, falling back to the built-in default.
+  const siteTheme = settings?.site_theme ?? DEFAULT_SITE_THEME
+  const theme = buildProfileTheme(siteTheme, mode)
   const fontDisplay = theme.fontDisplay
 
   return (
@@ -242,15 +259,7 @@ function LandingInner({ settings, users, error }) {
             {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
             {users.length > 0 && (
               <>
-                <Typography
-                  variant="overline"
-                  color="text.secondary"
-                  display="block"
-                  sx={{ mb: 3, letterSpacing: '0.12em' }}
-                >
-                  Meet the authors
-                </Typography>
-                <Grid container spacing={4}>
+                <Grid container spacing={4} justifyContent={users.length === 1 ? 'center' : undefined}>
                   {users.map((u) => (
                     <Grid item xs={12} sm={6} md={4} key={u.username}>
                       <Box

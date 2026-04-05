@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Box, Typography, TextField, Button, Alert, CircularProgress,
-  Avatar, Stack, Divider,
+  Avatar, Stack, Divider, FormControlLabel, Switch,
 } from '@mui/material'
 import client from '../../api/client.js'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -10,7 +10,7 @@ import { useNavData } from '../../context/NavDataContext.jsx'
 export default function Profile() {
   const { user, refresh } = useAuth()
   const navDataCtx = useNavData()
-  const [form, setForm] = useState({ display_name: '', bio: '', location: '', website: '' })
+  const [form, setForm] = useState({ display_name: '', bio: '', location: '', website: '', show_on_homepage: true })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -27,6 +27,7 @@ export default function Profile() {
           bio: p.bio || '',
           location: p.location || '',
           website: p.website || '',
+          show_on_homepage: p.show_on_homepage !== false,
         })
         if (p.avatar_path) {
           setAvatarSrc(p.avatar_path.startsWith('/') ? p.avatar_path : `/${p.avatar_path}`)
@@ -123,6 +124,15 @@ export default function Profile() {
           onChange={handleChange}
           multiline
           rows={3}
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={form.show_on_homepage}
+              onChange={(e) => setForm((f) => ({ ...f, show_on_homepage: e.target.checked }))}
+            />
+          }
+          label="Show my profile on the Charlotte homepage"
         />
         <TextField
           label="Location"

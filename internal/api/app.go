@@ -165,18 +165,19 @@ func clamp(v, min, max int) int {
 
 // userJSON is the public-facing JSON representation of a user.
 type userJSON struct {
-	ID          int64             `json:"id"`
-	Username    string            `json:"username"`
-	DisplayName string            `json:"display_name"`
-	Bio         string            `json:"bio"`
-	AvatarURL   string            `json:"avatar_url"`
-	Role        models.Role       `json:"role"`
-	Status      models.Status     `json:"status"`
-	IsAdmin     bool              `json:"is_admin"`
-	Features    featuresJSON      `json:"features"`
-	Theme       models.UserTheme  `json:"theme"`
-	Links       []models.UserLink `json:"links"`
-	CreatedAt   string            `json:"created_at"`
+	ID             int64             `json:"id"`
+	Username       string            `json:"username"`
+	DisplayName    string            `json:"display_name"`
+	Bio            string            `json:"bio"`
+	AvatarURL      string            `json:"avatar_url"`
+	Role           models.Role       `json:"role"`
+	Status         models.Status     `json:"status"`
+	IsAdmin        bool              `json:"is_admin"`
+	Features       featuresJSON      `json:"features"`
+	Theme          models.UserTheme  `json:"theme"`
+	Links          []models.UserLink `json:"links"`
+	ShowOnHomepage bool              `json:"show_on_homepage"`
+	CreatedAt      string            `json:"created_at"`
 }
 
 // userJSONWithEmail extends userJSON with an email field for private/admin endpoints.
@@ -219,9 +220,10 @@ func toUserJSON(u *models.User) userJSON {
 			Recipes:  u.FeatureRecipes,
 			Projects: u.FeatureProjects,
 		},
-		Theme:     u.Theme,
-		Links:     links,
-		CreatedAt: u.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		Theme:          u.Theme,
+		Links:          links,
+		ShowOnHomepage: u.ShowOnHomepage,
+		CreatedAt:      u.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
 }
 

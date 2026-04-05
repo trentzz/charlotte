@@ -87,6 +87,7 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - Display name, bio, avatar upload.
 - Up to 10 external links (label + URL).
 - Per-user feature toggles: Blog, About, Gallery, Recipes, Projects.
+- **Show on homepage toggle**: users can opt in or out of appearing on the Charlotte landing page user grid. The toggle is in the Profile form. Default is on (show). Stored in `show_on_homepage` column on the `users` table (migration 28). The public `GET /api/v1/users` endpoint only returns users with `show_on_homepage = 1`.
 - **Live avatar update**: after a successful avatar upload, the dashboard nav bar refreshes its profile data immediately without requiring a page reload.
 
 ---
@@ -128,13 +129,25 @@ Each user can fully customise the visual style of their public pages from Dashbo
 
 Default theme: sage green accent, warm cream background, dark warm body text (HSL 220, 15, 20), near-black headings (HSL 220, 20, 10), Playfair Display display and body font, Inter UI font, 16 px base size, 13 px nav labels. Dark mode defaults: light grey body text (HSL 220, 15, 85), near-white headings (HSL 220, 10, 92).
 
+## Site appearance (admin)
+
+Admins can configure the landing page's theme from Admin → Appearance (`/admin/appearance`):
+
+- Same controls as the per-user Appearance page (colour pickers, font cards, size sliders).
+- Saves to `PUT /api/v1/admin/appearance` and reads from `GET /api/v1/admin/appearance`.
+- Theme stored as `site_theme_json` in the `site_settings` table (migration 27). Returned under `site_theme` in `GET /api/v1/settings`.
+- The landing page uses `site_theme` from the settings response; falls back to the built-in default if none is set.
+
+Default site theme: deep burgundy accent (H=340, S=50, L=35), warm ivory background (H=38, S=30, L=97), near-black text (H=220, S=20, L=15). Dark mode: warm amber accent (H=36, S=70, L=58), deep blue-black background (H=222, S=22, L=11), warm off-white text. Playfair Display display and body font, Inter UI font.
+
 ---
 
 ## Dashboard
 
 - Overview page with quick links and content counts.
 - **Homepage builder**: drag-and-drop grid editor for the public home page (see above).
-- Profile editor: display name, bio, avatar, external links.
+- Profile editor: display name, bio, avatar, external links, "Show my profile on the Charlotte homepage" toggle.
+- Dashboard content area has 48 px (pb: 6) bottom padding so content never runs flush to the viewport edge.
 - **Appearance editor**: accent colour, background colour, fonts, font size, nav label size (HSL sliders, live preview).
 - Feature toggles: Blog, About, Gallery, Recipes, Projects.
 - Blog manager: list, create, edit, delete posts; toggle visibility. Blog editor includes "Upload image" (uploads and inserts into body) and "Pick from gallery" (select an existing photo and insert).
@@ -219,6 +232,7 @@ All routes under `/u/:username/` use the per-user theme. Nav has click-open drop
 - Users table with approve, suspend, and delete actions.
 - Content moderation with tabbed view across posts, photos, and recipes.
 - Site settings form (site name, description, registration toggle).
+- **Site Appearance**: full theme editor at `/admin/appearance` — same colour pickers, font cards, and size sliders as the user Appearance page. Saves the site-wide landing page theme. Auto-saves 800 ms after the last change.
 
 ### Build
 
@@ -233,13 +247,12 @@ Output goes to `frontend/dist/`. The Go binary serves `frontend/dist/index.html`
 ## Landing page
 
 - Spider-web themed design with subtle decorative SVG web overlays (opacity 0.06) positioned in the hero section corners.
-- Applies the first admin user's configured theme (colours, fonts) via `buildProfileTheme`. Falls back to the default theme if no admin exists.
+- Applies the site theme from `GET /api/v1/settings` (`site_theme` field). Falls back to the built-in default if none is stored.
 - Light/dark mode toggle (same sun/moon icon used in ProfileLayout); mode is persisted in `localStorage` as `charlotte_theme_mode`.
 - Top bar: Charlotte logo (display font) on the left; light/dark toggle, Log in, and Register (if registration open) on the right; Dashboard if logged in.
 - Hero: large display-font site name, italic tagline ("Some website. Radiant." — a nod to Charlotte's Web), optional site description, CTA buttons.
-- User grid below hero: flat cards (no Paper elevation) with avatar, display name, username, and truncated bio. Links to `/u/{username}`.
+- User grid below hero: flat cards (no Paper elevation) with avatar, display name, username, and truncated bio. Links to `/u/{username}`. Only shows users with `show_on_homepage = 1`. When there is exactly one user, the card is centred. The "Meet the authors" overline label is not shown.
 - Footer: "Charlotte" centred, divider line.
-- `GET /api/v1/settings` now includes `admin_theme` — the first active admin's theme object — so the landing page can adopt it without a separate API call.
 
 ---
 

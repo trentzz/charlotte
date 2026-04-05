@@ -22,9 +22,10 @@ func (a *App) DashProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 
 	var body struct {
-		DisplayName string            `json:"display_name"`
-		Bio         string            `json:"bio"`
-		Links       []models.UserLink `json:"links"`
+		DisplayName    string            `json:"display_name"`
+		Bio            string            `json:"bio"`
+		Links          []models.UserLink `json:"links"`
+		ShowOnHomepage *bool             `json:"show_on_homepage"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		a.respondError(w, http.StatusBadRequest, "invalid request body")
@@ -33,6 +34,9 @@ func (a *App) DashProfileUpdate(w http.ResponseWriter, r *http.Request) {
 
 	user.DisplayName = strings.TrimSpace(body.DisplayName)
 	user.Bio = strings.TrimSpace(body.Bio)
+	if body.ShowOnHomepage != nil {
+		user.ShowOnHomepage = *body.ShowOnHomepage
+	}
 	if body.Links != nil {
 		// Filter out links with empty label or URL.
 		var links []models.UserLink

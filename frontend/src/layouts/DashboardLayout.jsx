@@ -51,6 +51,7 @@ const ADMIN_ITEMS = [
   { label: 'Users', href: '/admin/users', icon: <PeopleIcon fontSize="small" /> },
   { label: 'Content', href: '/admin/content', icon: <ContentPasteIcon fontSize="small" /> },
   { label: 'Settings', href: '/admin/settings', icon: <SettingsIcon fontSize="small" /> },
+  { label: 'Appearance', href: '/admin/appearance', icon: <PaletteIcon fontSize="small" /> },
 ]
 
 function SidebarContent({ location, user, onClose }) {
@@ -316,7 +317,7 @@ export default function DashboardLayout() {
             </Toolbar>
           </AppBar>
 
-          <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 } }}>
+          <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, pb: 6 }}>
             <Box sx={{ maxWidth: 900, mx: 'auto' }}>
               <Outlet />
             </Box>

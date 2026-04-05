@@ -236,6 +236,12 @@ var migrations = []string{
 		post_id    INTEGER NOT NULL REFERENCES blog_posts(id) ON DELETE CASCADE,
 		PRIMARY KEY (project_id, post_id)
 	)`,
+
+	// 27: site-level theme stored as JSON in site_settings
+	`ALTER TABLE site_settings ADD COLUMN site_theme_json TEXT NOT NULL DEFAULT ''`,
+
+	// 28: per-user opt-in to appear on the landing page
+	`ALTER TABLE users ADD COLUMN show_on_homepage INTEGER NOT NULL DEFAULT 1`,
 }
 
 // migrate runs any migrations that have not yet been applied, in order.
