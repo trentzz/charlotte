@@ -2,8 +2,16 @@ import React, { Component, useCallback, useEffect, useRef, useState } from 'reac
 import GridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
-import ReactQuill from 'react-quill'
-import 'react-quill/dist/quill.snow.css'
+
+// Lazy-load react-quill to avoid Vite ESM compatibility issues.
+let _ReactQuill = null
+async function loadQuill() {
+  if (_ReactQuill) return _ReactQuill
+  const mod = await import('react-quill')
+  await import('react-quill/dist/quill.snow.css')
+  _ReactQuill = mod.default
+  return _ReactQuill
+}
 import {
   Box, Typography, Paper, IconButton, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, List, ListItemButton, ListItemText,
@@ -307,14 +315,21 @@ function TextInputDialog({ open, widgetType, onConfirm, onClose }) {
   const [content, setContent] = useState('')
   const [url, setUrl] = useState('')
   const [label, setLabel] = useState('')
+  const [QuillComp, setQuillComp] = useState(null)
 
   useEffect(() => {
-    if (open) { setContent(''); setUrl(''); setLabel('') }
-  }, [open])
+    if (open) {
+      setContent('')
+      setUrl('')
+      setLabel('')
+      if (widgetType === 'text') {
+        loadQuill().then((Q) => setQuillComp(() => Q))
+      }
+    }
+  }, [open, widgetType])
 
   function handleConfirm() {
     if (widgetType === 'text') {
-      // ReactQuill returns '<p><br></p>' for an empty editor.
       const stripped = content.replace(/<[^>]*>/g, '').trim()
       if (!stripped) return
       onConfirm({ content })
@@ -330,20 +345,26 @@ function TextInputDialog({ open, widgetType, onConfirm, onClose }) {
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
         {widgetType === 'text' ? (
           <Box>
-            <ReactQuill
-              theme="snow"
-              value={content}
-              onChange={setContent}
-              modules={{
-                toolbar: [
-                  ['bold', 'italic'],
-                  [{ list: 'bullet' }, { list: 'ordered' }],
-                  ['link'],
-                  ['clean'],
-                ],
-              }}
-              style={{ height: 160, marginBottom: 42 }}
-            />
+            {QuillComp ? (
+              <QuillComp
+                theme="snow"
+                value={content}
+                onChange={setContent}
+                modules={{
+                  toolbar: [
+                    ['bold', 'italic'],
+                    [{ list: 'bullet' }, { list: 'ordered' }],
+                    ['link'],
+                    ['clean'],
+                  ],
+                }}
+                style={{ height: 160, marginBottom: 42 }}
+              />
+            ) : (
+              <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CircularProgress size={24} />
+              </Box>
+            )}
           </Box>
         ) : (
           <>
