@@ -32,7 +32,7 @@ export default function AdminUsers() {
   async function approve(id) {
     try {
       await client.post(`/admin/users/${id}/approve`)
-      setUsers((us) => us.map((u) => u.id === id ? { ...u, approved: true, suspended: false } : u))
+      setUsers((us) => us.map((u) => u.id === id ? { ...u, status: 'active' } : u))
     } catch {
       setError('Failed to approve user.')
     }
@@ -41,7 +41,7 @@ export default function AdminUsers() {
   async function suspend(id) {
     try {
       await client.post(`/admin/users/${id}/suspend`)
-      setUsers((us) => us.map((u) => u.id === id ? { ...u, suspended: true } : u))
+      setUsers((us) => us.map((u) => u.id === id ? { ...u, status: 'suspended' } : u))
     } catch {
       setError('Failed to suspend user.')
     }
@@ -86,9 +86,9 @@ export default function AdminUsers() {
                 <TableCell>{user.username}</TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
-                  {user.suspended ? (
+                  {user.status === 'suspended' ? (
                     <Chip label="Suspended" color="error" size="small" />
-                  ) : user.approved ? (
+                  ) : user.status === 'active' ? (
                     <Chip label="Active" color="success" size="small" variant="outlined" />
                   ) : (
                     <Chip label="Pending" color="warning" size="small" />
@@ -98,14 +98,14 @@ export default function AdminUsers() {
                   {user.is_admin && <Chip label="Admin" size="small" color="primary" />}
                 </TableCell>
                 <TableCell align="right">
-                  {!user.approved && (
+                  {user.status !== 'active' && (
                     <Tooltip title="Approve">
                       <IconButton size="small" color="success" onClick={() => approve(user.id)}>
                         <CheckCircleIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   )}
-                  {!user.suspended && (
+                  {user.status !== 'suspended' && (
                     <Tooltip title="Suspend">
                       <IconButton size="small" color="warning" onClick={() => suspend(user.id)}>
                         <BlockIcon fontSize="small" />
