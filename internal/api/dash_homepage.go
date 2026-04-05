@@ -42,14 +42,20 @@ func (a *App) DashHomepageSave(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 
 	var body struct {
-		Widgets []models.Widget `json:"widgets"`
+		Mode          string          `json:"mode"`
+		SimpleContent string          `json:"simple_content"`
+		Widgets       []models.Widget `json:"widgets"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		a.respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	layout := &models.HomepageLayout{Widgets: body.Widgets}
+	layout := &models.HomepageLayout{
+		Mode:          body.Mode,
+		SimpleContent: sanitizeContent(body.SimpleContent),
+		Widgets:       body.Widgets,
+	}
 	if layout.Widgets == nil {
 		layout.Widgets = []models.Widget{}
 	}

@@ -16,7 +16,7 @@ import {
   Box, Typography, Paper, IconButton, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, List, ListItemButton, ListItemText,
   ListItemAvatar, Avatar, TextField, CircularProgress, Chip, Divider,
-  Alert, useMediaQuery,
+  Alert, useMediaQuery, ToggleButtonGroup, ToggleButton,
 } from '@mui/material'
 import PersonIcon from '@mui/icons-material/Person'
 import TextFieldsIcon from '@mui/icons-material/TextFields'
@@ -384,6 +384,63 @@ function TextInputDialog({ open, widgetType, initial, onConfirm, onClose }) {
   )
 }
 
+const SIMPLE_DEFAULT_CONTENT = `<h1>Hello, welcome</h1>
+<p>Welcome to my corner of the internet. I write about things I find interesting, share photos, and document projects I'm working on.</p>
+<h2>What I'm up to</h2>
+<p>Add what you're currently working on, reading, or thinking about.</p>`
+
+// ── Simple mode editor ────────────────────────────────────────────────────────
+
+function SimpleModeEditor({ simpleContent, setSimpleContent, widgets, onSave, saveStatus }) {
+  const [QuillComp, setQuillComp] = useState(null)
+
+  useEffect(() => {
+    loadQuill().then((Q) => setQuillComp(() => Q))
+  }, [])
+
+  const saved = saveStatus === 'saved'
+  const saving = saveStatus === 'saving'
+
+  return (
+    <Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Write your homepage as a single rich-text page.
+      </Typography>
+      {QuillComp ? (
+        <Paper variant="outlined" sx={{ mb: 2, '& .ql-container': { minHeight: 400, fontSize: 15 } }}>
+          <QuillComp
+            theme="snow"
+            value={simpleContent || SIMPLE_DEFAULT_CONTENT}
+            onChange={setSimpleContent}
+            modules={{
+              toolbar: [
+                [{ header: [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                ['blockquote', 'code-block'],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                ['link', 'image'],
+                ['clean'],
+              ],
+            }}
+          />
+        </Paper>
+      ) : (
+        <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+          <CircularProgress size={24} />
+        </Box>
+      )}
+      <Button
+        variant="contained"
+        color={saved ? 'success' : 'primary'}
+        onClick={onSave}
+        disabled={saving}
+      >
+        {saving ? 'Saving…' : saved ? 'Saved' : 'Save homepage'}
+      </Button>
+    </Box>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 function Homepage() {
@@ -394,6 +451,8 @@ function Homepage() {
   const [widgets, setWidgets] = useState([])
   const [available, setAvailable] = useState(null)
   const [canvasWidth, setCanvasWidth] = useState(800)
+  const [mode, setMode] = useState('builder') // 'simple' | 'builder'
+  const [simpleContent, setSimpleContent] = useState('')
 
   // Dialog state.
   const [pickerType, setPickerType] = useState(null)    // widget type being picked (add)
@@ -402,6 +461,12 @@ function Homepage() {
 
   const canvasRef = useRef(null)
   const saveTimerRef = useRef(null)
+  // Refs so debounced save always uses current values without stale closures.
+  const simpleContentRef = useRef('')
+  const modeRef = useRef('builder')
+
+  useEffect(() => { simpleContentRef.current = simpleContent }, [simpleContent])
+  useEffect(() => { modeRef.current = mode }, [mode])
 
   // Measure canvas width. Use rAF to ensure the element is laid out before
   // reading its size, then track ongoing changes with ResizeObserver.
@@ -428,6 +493,8 @@ function Homepage() {
       .then((res) => {
         const { layout, ...rest } = res.data
         setWidgets(layout?.widgets?.length > 0 ? layout.widgets : DEFAULT_WIDGETS)
+        setSimpleContent(layout?.simple_content || '')
+        setMode(layout?.mode || 'builder')
         setAvailable({ ...rest, blog_posts: rest.posts || [] })
       })
       .catch((err) => {
@@ -437,16 +504,50 @@ function Homepage() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Auto-save with 1s debounce.
+  // Auto-save with 1s debounce (builder mode).
+  // Reads mode and simpleContent from refs so the callback stays stable.
   const scheduleSave = useCallback((updatedWidgets) => {
     clearTimeout(saveTimerRef.current)
     setSaveStatus('saving')
     saveTimerRef.current = setTimeout(() => {
-      client.put('/dashboard/homepage', { widgets: updatedWidgets })
+      client.put('/dashboard/homepage', {
+        mode: modeRef.current,
+        simple_content: simpleContentRef.current,
+        widgets: updatedWidgets,
+      })
         .then(() => setSaveStatus('saved'))
         .catch(() => setSaveStatus('error'))
     }, 1000)
   }, [])
+
+  // Save for simple mode (manual).
+  function handleSimpleSave() {
+    setSaveStatus('saving')
+    client.put('/dashboard/homepage', {
+      mode: 'simple',
+      simple_content: simpleContent,
+      widgets,
+    })
+      .then(() => {
+        setSaveStatus('saved')
+        setTimeout(() => setSaveStatus('idle'), 1500)
+      })
+      .catch(() => setSaveStatus('error'))
+  }
+
+  // Switch modes and persist immediately.
+  function handleModeChange(_, newMode) {
+    if (!newMode || newMode === mode) return
+    setMode(newMode)
+    setSaveStatus('saving')
+    client.put('/dashboard/homepage', {
+      mode: newMode,
+      simple_content: simpleContent,
+      widgets,
+    })
+      .then(() => setSaveStatus('saved'))
+      .catch(() => setSaveStatus('error'))
+  }
 
   function handleLayoutChange(layout) {
     setWidgets((prev) => {
@@ -573,24 +674,54 @@ function Homepage() {
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-          <Typography variant="h5" fontWeight={700}>Homepage builder</Typography>
-          <Typography variant="caption" color={
-            saveStatus === 'saving' ? 'text.secondary'
-              : saveStatus === 'saved' ? 'success.main'
-              : saveStatus === 'error' ? 'error.main'
-              : 'transparent'
-          }>
-            {saveStatus === 'saving' ? 'Saving…'
-              : saveStatus === 'saved' ? 'Saved'
-              : saveStatus === 'error' ? 'Save failed'
-              : '.'}
+          <Typography variant="h5" fontWeight={700}>Homepage</Typography>
+          {mode === 'builder' && (
+            <Typography variant="caption" color={
+              saveStatus === 'saving' ? 'text.secondary'
+                : saveStatus === 'saved' ? 'success.main'
+                : saveStatus === 'error' ? 'error.main'
+                : 'transparent'
+            }>
+              {saveStatus === 'saving' ? 'Saving…'
+                : saveStatus === 'saved' ? 'Saved'
+                : saveStatus === 'error' ? 'Save failed'
+                : '.'}
+            </Typography>
+          )}
+        </Box>
+
+        {/* Mode toggle */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1.5 }}>
+          <ToggleButtonGroup
+            value={mode}
+            exclusive
+            onChange={handleModeChange}
+            size="small"
+          >
+            <ToggleButton value="simple">Simple</ToggleButton>
+            <ToggleButton value="builder">Builder</ToggleButton>
+          </ToggleButtonGroup>
+          <Typography variant="body2" color="text.secondary">
+            {mode === 'simple'
+              ? 'Write your homepage as a single rich-text page.'
+              : 'Drag and resize widgets to arrange your homepage. Changes save automatically.'}
           </Typography>
         </Box>
-        <Typography variant="body2" color="text.secondary">
-          Drag and resize widgets to arrange your homepage. Changes save automatically.
-        </Typography>
       </Box>
 
+      {/* Simple mode */}
+      {mode === 'simple' && (
+        <SimpleModeEditor
+          simpleContent={simpleContent}
+          setSimpleContent={setSimpleContent}
+          widgets={widgets}
+          onSave={handleSimpleSave}
+          saveStatus={saveStatus}
+        />
+      )}
+
+      {/* Builder mode */}
+      {mode === 'builder' && (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {/* Canvas */}
         <Box
@@ -685,6 +816,7 @@ function Homepage() {
           </Box>
         </Box>
       </Box>
+      )}
 
       {/* Picker dialog for content-linked widgets */}
       <ContentPickerDialog

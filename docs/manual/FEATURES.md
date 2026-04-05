@@ -135,21 +135,36 @@ Users can create one-off pages that sit outside the main feature set (blog, gall
 
 **Slug sanitisation:** slugs are cleaned through `slug.Make` (the existing slug package) on create and update.
 
-### Homepage grid builder
+### Homepage
 
-- Each user has a fully customisable homepage at `/u/{username}/` built from a free-form widget grid.
-- **Dashboard editor** at `/dashboard/homepage`: left panel lists available widget types (Profile card, Text block, Link, Blog post, Photo, Album, Recipe, Project). Clicking "Add" places a widget on the canvas.
-- **Canvas**: 12-column grid with 80 px row height. Drag widgets by their top handle strip; resize via the bottom-right handle. Layout auto-compacts vertically.
+Each user has a customisable homepage at `/u/{username}/`. Two modes are available, toggled from the dashboard at `/dashboard/homepage`.
+
+#### Simple mode
+
+- Renders the homepage as a single rich-text page — like the About page.
+- **Editor**: ReactQuill WYSIWYG with full blog-editor toolbar (headings, bold, italic, lists, blockquote, code block, links, image). Editor is at least 400 px tall.
+- **Public render**: centred, max-width 720 px, clean typography. Heading and body fonts follow the site theme (display font for h1–h6, body font for paragraphs).
+- Save is manual via a "Save homepage" button that turns green on success.
+
+#### Builder mode
+
+- A free-form widget grid of content cards.
+- **Dashboard editor**: widget palette below the canvas lists available types (Profile card, Text block, Link, Blog post, Photo, Album, Recipe, Project). Clicking "Add" places a widget on the canvas.
+- **Canvas**: 12-column grid with 80 px row height. Drag widgets by the card body; resize via corner and edge handles. Layout auto-compacts vertically.
 - **Auto-save**: changes debounce for 1 second and then save silently to `PUT /api/v1/dashboard/homepage`.
 - **Content-linked widgets** (blog post, photo, album, recipe, project): a picker dialog lists all available items so the user can choose which one to pin.
-- **Text widget**: a dialog with a ReactQuill rich-text editor (bold, italic, bullet list, ordered list, link). Content is stored as HTML and rendered as HTML on the public page.
+- **Text widget**: a dialog with a ReactQuill rich-text editor. Content stored as HTML and rendered on the public page.
 - **Link widget**: a dialog accepts a URL and optional label; renders as a clickable card.
 - **Profile widget**: displays the user's avatar, display name, and bio snippet.
-- **Public renderer**: if the user has at least one widget, the home page renders the custom grid (non-draggable, non-resizable). If no widgets are set, the default layout (recent posts) is shown as a fallback.
+- **Public renderer**: if the user has at least one widget, the home page renders the custom grid (non-draggable, non-resizable). If no widgets are set, the default layout (recent posts and photos) is shown as a fallback.
 - **Homepage card style**: widget cards on the public homepage have no visible border, no background, and no colour strip — they blend seamlessly into the page background. The dashboard editor retains the coloured accent strip for identification.
 - **Album widget label**: album widgets on the public homepage display the album name as a text label below the cover photo.
 - **Album widget fix**: the public profile endpoint now returns all albums (not just top-level) so sub-albums pinned as widgets are resolved correctly.
-- Widget layout stored as JSON in the `homepage_json` column of the `users` table. Included in the `GET /api/v1/u/{username}` response under the `homepage` key.
+
+#### Storage
+
+- Mode, simple content, and widget layout are stored as JSON in the `homepage_json` column of the `users` table. The `mode` field is `"simple"` or `"builder"` (empty treated as `"builder"` by the frontend). Included in the `GET /api/v1/u/{username}` response under the `homepage` key.
+- Switching modes persists immediately; content from the other mode is preserved.
 - **Robustness**: the layout conversion guards against widgets missing a `layout` property (defaults to `{x:0, y:0, w:4, h:3}`) and against null or empty `contentId` values on content-linked widgets. API errors show an Alert instead of a blank screen.
 
 ### User profile
@@ -232,7 +247,7 @@ Default site theme: deep burgundy accent (H=340, S=50, L=35), warm ivory backgro
 ## Dashboard
 
 - Overview page with quick links and content counts.
-- **Homepage builder**: drag-and-drop grid editor for the public home page (see above).
+- **Homepage editor**: toggle between Simple mode (rich-text page) and Builder mode (drag-and-drop widget grid) for the public home page (see above).
 - Profile editor: display name, bio, avatar, external links, "Show my profile on the Charlotte homepage" toggle.
 - Dashboard content area has 48 px (pb: 6) bottom padding so content never runs flush to the viewport edge.
 - **Appearance editor**: accent colour, background colour, fonts, font size, nav label size (HSL sliders, live preview).
@@ -356,7 +371,7 @@ All routes under `/u/:username/` use the per-user theme. Nav has click-open drop
 - Gallery — album CRUD, photo upload (multi-file), lightbox view, delete.
 - Recipes — form editor with grouped ingredients and method steps (drag-to-reorder within each section), multiple sections per recipe, and named variations.
 - Projects — card grid with inline create/edit forms.
-- Homepage builder — `react-grid-layout` drag-and-resize canvas with widget palette sidebar.
+- Homepage — mode toggle between Simple (rich-text page via `react-quill`) and Builder (`react-grid-layout` drag-and-resize canvas with widget palette).
 
 ### Admin
 

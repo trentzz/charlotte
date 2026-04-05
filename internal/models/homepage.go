@@ -40,7 +40,9 @@ type Widget struct {
 
 // HomepageLayout is the full saved layout for a user's homepage.
 type HomepageLayout struct {
-	Widgets []Widget `json:"widgets"`
+	Mode          string   `json:"mode"`           // "simple" | "builder"; empty treated as "builder" by the frontend
+	SimpleContent string   `json:"simple_content"` // sanitised HTML for simple mode
+	Widgets       []Widget `json:"widgets"`
 }
 
 // GetHomepageLayout reads the homepage_json for a user.

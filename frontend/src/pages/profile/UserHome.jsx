@@ -418,8 +418,26 @@ export default function UserHome() {
     )
   }
 
+  const homepageMode = navData?.homepage?.mode || 'builder'
   const homepageWidgets = navData?.homepage?.widgets || []
   const hasCustomLayout = homepageWidgets.length > 0
+
+  // Simple mode: render the rich-text page.
+  if (homepageMode === 'simple') {
+    return (
+      <Container maxWidth="sm" sx={{ py: 8 }}>
+        <Box
+          sx={{
+            '& h1': { typography: 'h3', fontWeight: 700, mb: 2 },
+            '& h2': { typography: 'h5', fontWeight: 600, mt: 4, mb: 1 },
+            '& p': { typography: 'body1', mb: 2, lineHeight: 1.8 },
+            '& a': { color: 'primary.main' },
+          }}
+          dangerouslySetInnerHTML={{ __html: navData.homepage.simple_content || '' }}
+        />
+      </Container>
+    )
+  }
 
   if (hasCustomLayout) {
     return (
