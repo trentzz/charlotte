@@ -7,7 +7,7 @@ A self-hosted personal website platform. Each user gets a public page at `/u/{us
 ## Features
 
 - **Blog** — Markdown posts with tags, drafts, and per-post visibility.
-- **Gallery** — Photo albums (JPEG, PNG, WebP, GIF, up to 10 MB each). Editorial grid layout, lightbox viewer.
+- **Gallery** — Photo albums (JPEG, PNG, WebP, GIF, up to 30 MB each). Editorial grid layout, lightbox viewer.
 - **Recipes** — Ingredient lists, step-by-step method, and a variations journal for tracking attempts.
 - **Projects** — Portfolio cards with title, description, and external link.
 - **About page** — Single Markdown document as a public about page.

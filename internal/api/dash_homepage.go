@@ -60,11 +60,36 @@ func (a *App) DashHomepageSave(w http.ResponseWriter, r *http.Request) {
 		layout.Widgets = []models.Widget{}
 	}
 
+	// Validate widget types.
+	validTypes := map[string]bool{
+		"profile":   true,
+		"text":      true,
+		"link":      true,
+		"blog_post": true,
+		"photo":     true,
+		"album":     true,
+		"recipe":    true,
+		"project":   true,
+	}
+	for i := range layout.Widgets {
+		if !validTypes[string(layout.Widgets[i].Type)] {
+			a.respondError(w, http.StatusBadRequest, "invalid widget type")
+			return
+		}
+	}
+
 	// Strip widget URLs that are not http/https to prevent javascript: injection.
 	for i := range layout.Widgets {
 		u := layout.Widgets[i].URL
 		if u != "" && !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
 			layout.Widgets[i].URL = ""
+		}
+	}
+
+	// Sanitise widget text content.
+	for i := range layout.Widgets {
+		if layout.Widgets[i].Content != "" {
+			layout.Widgets[i].Content = sanitizeContent(layout.Widgets[i].Content)
 		}
 	}
 

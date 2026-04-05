@@ -139,6 +139,11 @@ func makeUniqueSlug(db *sql.DB, table string, userID, exceptID int64, base strin
 	}
 }
 
+// isUniqueConstraintError reports whether err is a SQLite UNIQUE constraint violation.
+func isUniqueConstraintError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
+}
+
 // ── String helpers ───────────────────────────────────────────────────────────
 
 // parseStringOrArray accepts a JSON value that is either a plain string or a

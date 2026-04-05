@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Box, Typography, Button, Paper, Divider, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions, Checkbox,
-  List, ListItem, ListItemText, ListItemIcon, Alert, CircularProgress,
+  List, ListItemButton, ListItemText, ListItemIcon, Alert, CircularProgress,
   TextField,
 } from '@mui/material'
 import CheckIcon from '@mui/icons-material/Check'
@@ -357,8 +357,7 @@ function PinnedItemsPicker({ section, sectionLabel, availableItems, currentPinne
               {availableItems.map((item, i) => (
                 <React.Fragment key={item.slug}>
                   {i > 0 && <Divider component="li" />}
-                  <ListItem
-                    button
+                  <ListItemButton
                     onClick={() => toggle(item.slug)}
                     disabled={!selected.has(item.slug) && selected.size >= 8}
                   >
@@ -377,7 +376,7 @@ function PinnedItemsPicker({ section, sectionLabel, availableItems, currentPinne
                       primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
                       secondaryTypographyProps={{ variant: 'caption' }}
                     />
-                  </ListItem>
+                  </ListItemButton>
                 </React.Fragment>
               ))}
             </List>

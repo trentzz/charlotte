@@ -37,9 +37,11 @@ func (a *App) DashCustomPageKinds(w http.ResponseWriter, r *http.Request) {
 func (a *App) DashCustomPageCreate(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 	var body struct {
-		Kind  string `json:"kind"`
-		Title string `json:"title"`
-		Slug  string `json:"slug"`
+		Kind     string `json:"kind"`
+		Title    string `json:"title"`
+		Slug     string `json:"slug"`
+		Body     string `json:"body"`
+		DataJSON string `json:"data_json"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		a.respondError(w, http.StatusBadRequest, "invalid body")
@@ -63,16 +65,29 @@ func (a *App) DashCustomPageCreate(w http.ResponseWriter, r *http.Request) {
 	if title == "" {
 		title = kd.Label
 	}
+	dataJSON := body.DataJSON
+	if dataJSON == "" {
+		dataJSON = "{}"
+	}
+	if !json.Valid([]byte(dataJSON)) {
+		a.respondError(w, http.StatusBadRequest, "data_json must be valid JSON")
+		return
+	}
 	p := &models.CustomPage{
 		UserID:   user.ID,
 		Kind:     kd.Kind,
 		Format:   kd.Format,
 		Slug:     pageSlug,
 		Title:    title,
-		DataJSON: "{}",
+		Body:     sanitizeContent(body.Body),
+		DataJSON: dataJSON,
 	}
 	id, err := models.CreateCustomPage(a.DB, p)
 	if err != nil {
+		if isUniqueConstraintError(err) {
+			a.respondError(w, http.StatusConflict, "a page with this slug already exists")
+			return
+		}
 		a.internalError(w, r, err)
 		return
 	}
@@ -127,21 +142,31 @@ func (a *App) DashCustomPageUpdate(w http.ResponseWriter, r *http.Request) {
 		a.respondError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	// Only overwrite content fields on full saves (identified by title being present).
+	// Nav-pin and publish toggles send only nav_pinned/published and must not wipe content.
 	if body.Title != "" {
 		p.Title = body.Title
+		if body.Slug != "" {
+			p.Slug = slug.Make(body.Slug)
+		}
+		p.Description = body.Description
+		p.Body = sanitizeContent(body.Body)
 	}
-	if body.Slug != "" {
-		p.Slug = slug.Make(body.Slug)
-	}
-	p.Description = body.Description
-	p.Body = body.Body
 	if body.DataJSON != "" {
+		if !json.Valid([]byte(body.DataJSON)) {
+			a.respondError(w, http.StatusBadRequest, "data_json must be valid JSON")
+			return
+		}
 		p.DataJSON = body.DataJSON
 	}
 	if body.NavPinned != nil {
 		p.NavPinned = *body.NavPinned
 	}
 	if err := models.UpdateCustomPage(a.DB, p); err != nil {
+		if isUniqueConstraintError(err) {
+			a.respondError(w, http.StatusConflict, "a page with this slug already exists")
+			return
+		}
 		a.internalError(w, r, err)
 		return
 	}

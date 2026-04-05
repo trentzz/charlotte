@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/trentzz/charlotte/internal/middleware"
@@ -24,17 +25,29 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if profile.FeatureBlog {
-		posts, _ := models.ListPostsByUser(a.DB, profile.ID, true)
+		posts, err := models.ListPostsByUser(a.DB, profile.ID, !isOwner)
+		if err != nil {
+			log.Printf("profile: list posts for user %d: %v", profile.ID, err)
+			posts = nil
+		}
 		out["recent_posts"] = toPostList(posts)
 	} else {
 		out["recent_posts"] = []any{}
 	}
 
 	if profile.FeatureGallery {
-		photos, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 50)
+		photos, err := models.ListRecentPhotosByUser(a.DB, profile.ID, 50)
+		if err != nil {
+			log.Printf("profile: list photos for user %d: %v", profile.ID, err)
+			photos = nil
+		}
 		out["recent_photos"] = toPhotoList(photos)
 		// Use all albums (not just top-level) so sub-albums pinned as homepage widgets can be matched.
-		albums, _ := models.ListAlbumsByUser(a.DB, profile.ID, true)
+		albums, err := models.ListAlbumsByUser(a.DB, profile.ID, true)
+		if err != nil {
+			log.Printf("profile: list albums for user %d: %v", profile.ID, err)
+			albums = nil
+		}
 		out["albums"] = toAlbumList(albums)
 	} else {
 		out["recent_photos"] = []any{}
@@ -42,23 +55,39 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if profile.FeatureRecipes {
-		recipes, _ := models.ListRecipesByUser(a.DB, profile.ID, true)
+		recipes, err := models.ListRecipesByUser(a.DB, profile.ID, !isOwner)
+		if err != nil {
+			log.Printf("profile: list recipes for user %d: %v", profile.ID, err)
+			recipes = nil
+		}
 		out["recent_recipes"] = toRecipeList(recipes)
 	} else {
 		out["recent_recipes"] = []any{}
 	}
 
 	if profile.FeatureProjects {
-		projs, _ := models.ListProjectsByUser(a.DB, profile.ID, !isOwner)
+		projs, err := models.ListProjectsByUser(a.DB, profile.ID, !isOwner)
+		if err != nil {
+			log.Printf("profile: list projects for user %d: %v", profile.ID, err)
+			projs = nil
+		}
 		out["recent_projects"] = toProjectList(projs)
 	} else {
 		out["recent_projects"] = []any{}
 	}
 
-	layout, _ := models.GetHomepageLayout(a.DB, profile.ID)
+	layout, err := models.GetHomepageLayout(a.DB, profile.ID)
+	if err != nil {
+		log.Printf("profile: get homepage layout for user %d: %v", profile.ID, err)
+		layout = nil
+	}
 	out["homepage"] = layout
 
-	pages, _ := models.ListCustomPagesByUser(a.DB, profile.ID, !isOwner)
+	pages, err := models.ListCustomPagesByUser(a.DB, profile.ID, !isOwner)
+	if err != nil {
+		log.Printf("profile: list custom pages for user %d: %v", profile.ID, err)
+		pages = nil
+	}
 	out["custom_pages"] = toCustomPageList(pages)
 	out["custom_nav"] = map[string]any{
 		"mode":  profile.CustomNavMode,

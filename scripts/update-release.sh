@@ -135,7 +135,7 @@ info "Waiting for container to start..."
 sleep 5
 
 info "Recent container logs:"
-docker logs charlotte-charlotte-1 2>&1 | tail -20
+docker compose logs --tail=20 charlotte
 echo ""
 
 # ---------------------------------------------------------------------------

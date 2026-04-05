@@ -325,19 +325,6 @@ export default function RecipePost() {
           )}
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-          {recipe?.cuisine && <Chip label={recipe.cuisine} size="small" />}
-          {recipe?.prep_time && (
-            <Chip label={`${recipe.prep_time} min prep`} size="small" variant="outlined" />
-          )}
-          {recipe?.cook_time && (
-            <Chip label={`${recipe.cook_time} min cook`} size="small" variant="outlined" />
-          )}
-          {recipe?.servings && (
-            <Chip label={`Serves ${recipe.servings}`} size="small" variant="outlined" />
-          )}
-        </Box>
-
         {recipe?.description && (
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
             {recipe.description}
@@ -399,17 +386,6 @@ export default function RecipePost() {
           </>
         )}
 
-        {recipe?.notes && (
-          <>
-            <Typography variant="h5" fontWeight={600} gutterBottom sx={{ mt: 3 }}>
-              Notes
-            </Typography>
-            <Typography variant="body1" sx={{ mb: 3 }}>
-              {recipe.notes}
-            </Typography>
-          </>
-        )}
-
         {variations.length > 0 && (
           <>
             <Divider sx={{ my: 4 }} />
@@ -462,25 +438,11 @@ export default function RecipePost() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {attempts.map((attempt, i) => (
                 <Paper key={attempt.id || i} variant="outlined" sx={{ p: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="subtitle2" fontWeight={600}>
-                      {attempt.title || `Attempt ${i + 1}`}
-                    </Typography>
-                    {attempt.made_on && (
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(attempt.made_on).toLocaleDateString('en-AU', {
-                          year: 'numeric', month: 'long', day: 'numeric',
-                        })}
-                      </Typography>
-                    )}
-                  </Box>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: attempt.notes ? 1 : 0 }}>
+                    {attempt.title || `Attempt ${i + 1}`}
+                  </Typography>
                   {attempt.notes && (
                     <Typography variant="body2">{attempt.notes}</Typography>
-                  )}
-                  {attempt.rating && (
-                    <Typography variant="caption" color="text.secondary">
-                      Rating: {attempt.rating}/5
-                    </Typography>
                   )}
                 </Paper>
               ))}
