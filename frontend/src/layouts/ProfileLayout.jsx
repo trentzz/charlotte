@@ -16,19 +16,24 @@ import buildProfileTheme from '../theme/buildProfileTheme.js'
 
 // A nav button that navigates to the section and opens a dropdown on hover.
 function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
-  const buttonRef = useRef(null)
+  const wrapperRef = useRef(null)
   const closeTimer = useRef(null)
   const [open, setOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
 
-  const handleOpen = () => {
+  function openMenu() {
     clearTimeout(closeTimer.current)
     setOpen(true)
   }
-  const handleStartClose = () => {
-    closeTimer.current = setTimeout(() => setOpen(false), 200)
+
+  function scheduleClose() {
+    closeTimer.current = setTimeout(() => {
+      setOpen(false)
+      setFilterText('')
+    }, 250)
   }
-  const handleClose = () => {
+
+  function closeMenu() {
     clearTimeout(closeTimer.current)
     setOpen(false)
     setFilterText('')
@@ -47,28 +52,32 @@ function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
     : items
 
   return (
-    <>
+    // Wrapper catches hover on the button side.
+    <Box
+      ref={wrapperRef}
+      onMouseEnter={openMenu}
+      onMouseLeave={scheduleClose}
+      sx={{ display: 'inline-flex' }}
+    >
       <Button
-        ref={buttonRef}
         component={RouterLink}
         to={allHref}
         endIcon={<KeyboardArrowDownIcon />}
-        onMouseEnter={handleOpen}
-        onMouseLeave={handleStartClose}
         sx={{ color: 'inherit', ...labelStyle }}
       >
         {label}
       </Button>
       <Menu
-        anchorEl={buttonRef.current}
+        anchorEl={wrapperRef.current}
         open={open}
-        onClose={handleClose}
+        onClose={closeMenu}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        PaperProps={{ sx: { minWidth: buttonRef.current?.offsetWidth ?? 120 } }}
-        MenuListProps={{
-          onMouseEnter: handleOpen,
-          onMouseLeave: handleStartClose,
+        // PaperProps catches hover on the menu side (covers full Paper, not just the inner list).
+        PaperProps={{
+          onMouseEnter: openMenu,
+          onMouseLeave: scheduleClose,
+          sx: { minWidth: wrapperRef.current?.offsetWidth ?? 120 },
         }}
         disableAutoFocusItem
         disableScrollLock
@@ -82,7 +91,6 @@ function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
               onKeyDown={(e) => e.stopPropagation()}
-              autoFocus
               fullWidth
               sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
             />
@@ -93,14 +101,14 @@ function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
             key={item.href}
             component={RouterLink}
             to={item.href}
-            onClick={handleClose}
+            onClick={closeMenu}
             sx={{ fontSize: navFontSize }}
           >
             {item.label}
           </MenuItem>
         ))}
       </Menu>
-    </>
+    </Box>
   )
 }
 
