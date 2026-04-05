@@ -137,61 +137,40 @@ function WidgetCard({ widget, onRemove, available }) {
 
   return (
     <Box
+      className="widget-drag-handle"
       sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 1.5,
         overflow: 'hidden',
-        bgcolor: 'background.paper',
+        bgcolor: 'transparent',
         boxShadow: 'none',
         border: 'none',
         position: 'relative',
+        cursor: 'grab',
       }}
     >
-      {/* Coloured accent strip + drag handle */}
-      <Box
-        className="widget-drag-handle"
-        sx={{
-          height: 6,
-          bgcolor: colour,
-          cursor: 'grab',
-          flexShrink: 0,
-        }}
-      />
-
       {/* Remove button */}
       <IconButton
         size="small"
         onClick={(e) => { e.stopPropagation(); onRemove(widget.id) }}
         sx={{
           position: 'absolute',
-          top: 8,
+          top: 4,
           right: 4,
           zIndex: 10,
           bgcolor: 'background.paper',
           p: 0.25,
-          '&:hover': { bgcolor: 'error.light', color: 'error.contrastText' },
+          opacity: 0.7,
+          '&:hover': { bgcolor: 'error.light', color: 'error.contrastText', opacity: 1 },
         }}
       >
         <CloseIcon sx={{ fontSize: 14 }} />
       </IconButton>
 
-      {/* Drag handle icon in top-left corner */}
-      <DragIndicatorIcon
-        className="widget-drag-handle"
-        sx={{
-          position: 'absolute',
-          top: 10,
-          left: 6,
-          fontSize: 16,
-          color: 'text.disabled',
-          cursor: 'grab',
-        }}
-      />
-
       {/* Content */}
-      <Box sx={{ flex: 1, overflow: 'hidden', p: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+      <Box sx={{ flex: 1, overflow: 'hidden', p: 1.5, pt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
         {photoURL ? (
           <Box
             component="img"
@@ -217,14 +196,13 @@ function WidgetCard({ widget, onRemove, available }) {
           </>
         ) : (
           <>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <Icon sx={{ fontSize: 18, color: colour, flexShrink: 0 }} />
-              <Chip
-                label={entry?.label || widget.type}
-                size="small"
-                sx={{ fontSize: 10, height: 18, bgcolor: colour + '22', color: colour }}
-              />
-            </Box>
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+            >
+              {entry?.label || widget.type}
+            </Typography>
             <Typography
               variant="body2"
               fontWeight={600}
@@ -621,24 +599,23 @@ function Homepage() {
           </GridLayout>
         </Box>
 
-        {/* Widget palette — horizontal scrollable row below canvas */}
+        {/* Widget palette — grid below canvas */}
         <Box>
           <Typography variant="overline" sx={{ display: 'block', mb: 1, color: 'text.secondary', fontSize: 11, letterSpacing: '0.08em' }}>
             Add widgets
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', pb: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 1 }}>
             {PALETTE.map((entry) => {
               const Icon = entry.Icon
-              const colour = WIDGET_COLOURS[entry.type]
               return (
                 <Paper
                   key={entry.type}
                   variant="outlined"
-                  sx={{ p: 1.25, borderRadius: 1.5, flexShrink: 0, minWidth: 120 }}
+                  sx={{ p: 1.25, borderRadius: 1.5 }}
                 >
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, alignItems: 'flex-start' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <Icon sx={{ fontSize: 15, color: colour }} />
+                      <Icon sx={{ fontSize: 15, color: 'text.secondary' }} />
                       <Typography variant="body2" fontWeight={600} sx={{ fontSize: 12 }}>
                         {entry.label}
                       </Typography>
@@ -648,7 +625,7 @@ function Homepage() {
                       variant="outlined"
                       fullWidth
                       onClick={() => handlePaletteAdd(entry.type)}
-                      sx={{ fontSize: 11, py: 0.25, minWidth: 0, borderColor: colour, color: colour, '&:hover': { borderColor: colour, bgcolor: colour + '11' } }}
+                      sx={{ fontSize: 11, py: 0.25, minWidth: 0 }}
                     >
                       Add
                     </Button>
