@@ -1,4 +1,9 @@
-/* Remove default arrow glyphs from react-grid-layout resize handles */
-.react-resizable-handle::after {
-  display: none;
+/* Remove the SVG arrow icons from react-resizable handles. The handle
+   areas remain in the DOM so dragging to resize still works. */
+.react-resizable-handle {
+  background-image: none !important;
+}
+.react-resizable-handle:hover {
+  background-color: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
 }

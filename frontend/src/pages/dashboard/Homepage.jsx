@@ -75,8 +75,10 @@ function widgetsToLayout(widgets) {
         i: w.id,
         x: layout.x ?? 0,
         y: layout.y ?? 0,
-        w: layout.w || 4,
+        w: Math.min(layout.w || 4, 12),
         h: layout.h || 3,
+        minW: 2,
+        minH: 2,
       }
     })
 }
@@ -356,17 +358,22 @@ function Homepage() {
   const canvasRef = useRef(null)
   const saveTimerRef = useRef(null)
 
-  // Measure canvas width. Read immediately on mount, then track changes.
+  // Measure canvas width. Use rAF to ensure the element is laid out before
+  // reading its size, then track ongoing changes with ResizeObserver.
   useEffect(() => {
     if (!canvasRef.current) return
-    // Set the initial width synchronously so the first render uses a real value.
-    const initial = canvasRef.current.getBoundingClientRect().width
-    if (initial > 0) setCanvasWidth(initial)
+    const el = canvasRef.current
+    const read = () => {
+      const w = el.getBoundingClientRect().width
+      if (w > 0) setCanvasWidth(w)
+    }
+    // First read after layout.
+    requestAnimationFrame(read)
     const obs = new ResizeObserver(([entry]) => {
       const w = entry.contentRect.width
       if (w > 0) setCanvasWidth(w)
     })
-    obs.observe(canvasRef.current)
+    obs.observe(el)
     return () => obs.disconnect()
   }, [])
 
