@@ -27,6 +27,7 @@ import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import MenuBookIcon from '@mui/icons-material/MenuBook'
 import WorkIcon from '@mui/icons-material/Work'
 import CloseIcon from '@mui/icons-material/Close'
+import EditIcon from '@mui/icons-material/Edit'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import client from '../../api/client.js'
 
@@ -107,7 +108,7 @@ function applyLayout(widgets, layout) {
 
 // ── Widget card rendered on the canvas ───────────────────────────────────────
 
-function WidgetCard({ widget, onRemove, available }) {
+function WidgetCard({ widget, onRemove, onEdit, available }) {
   const colour = WIDGET_COLOURS[widget.type] || '#9e9e9e'
   const entry = PALETTE.find((p) => p.type === widget.type)
   const Icon = entry?.Icon || ArticleIcon
@@ -151,23 +152,25 @@ function WidgetCard({ widget, onRemove, available }) {
         cursor: 'grab',
       }}
     >
-      {/* Remove button */}
-      <IconButton
-        size="small"
-        onClick={(e) => { e.stopPropagation(); onRemove(widget.id) }}
-        sx={{
-          position: 'absolute',
-          top: 4,
-          right: 4,
-          zIndex: 10,
-          bgcolor: 'background.paper',
-          p: 0.25,
-          opacity: 0.7,
-          '&:hover': { bgcolor: 'error.light', color: 'error.contrastText', opacity: 1 },
-        }}
-      >
-        <CloseIcon sx={{ fontSize: 14 }} />
-      </IconButton>
+      {/* Edit + Remove buttons */}
+      <Box sx={{ position: 'absolute', top: 4, right: 4, zIndex: 10, display: 'flex', gap: 0.5 }}>
+        {widget.type !== 'profile' && (
+          <IconButton
+            size="small"
+            onClick={(e) => { e.stopPropagation(); onEdit(widget) }}
+            sx={{ bgcolor: 'background.paper', p: 0.25, opacity: 0.7, '&:hover': { opacity: 1 } }}
+          >
+            <EditIcon sx={{ fontSize: 13 }} />
+          </IconButton>
+        )}
+        <IconButton
+          size="small"
+          onClick={(e) => { e.stopPropagation(); onRemove(widget.id) }}
+          sx={{ bgcolor: 'background.paper', p: 0.25, opacity: 0.7, '&:hover': { bgcolor: 'error.light', color: 'error.contrastText', opacity: 1 } }}
+        >
+          <CloseIcon sx={{ fontSize: 13 }} />
+        </IconButton>
+      </Box>
 
       {/* Content */}
       <Box sx={{ flex: 1, overflow: 'hidden', p: 1.5, pt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -289,7 +292,7 @@ function ContentPickerDialog({ open, widgetType, available, onPick, onClose }) {
 
 // ── Text / link input dialog ──────────────────────────────────────────────────
 
-function TextInputDialog({ open, widgetType, onConfirm, onClose }) {
+function TextInputDialog({ open, widgetType, initial, onConfirm, onClose }) {
   const [content, setContent] = useState('')
   const [url, setUrl] = useState('')
   const [label, setLabel] = useState('')
@@ -297,9 +300,9 @@ function TextInputDialog({ open, widgetType, onConfirm, onClose }) {
 
   useEffect(() => {
     if (open) {
-      setContent('')
-      setUrl('')
-      setLabel('')
+      setContent(initial?.content || '')
+      setUrl(initial?.url || '')
+      setLabel(initial?.label || '')
       if (widgetType === 'text') {
         loadQuill().then((Q) => setQuillComp(() => Q))
       }
@@ -319,7 +322,7 @@ function TextInputDialog({ open, widgetType, onConfirm, onClose }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{widgetType === 'text' ? 'Add text block' : 'Add link'}</DialogTitle>
+      <DialogTitle>{widgetType === 'text' ? (initial?.content ? 'Edit text block' : 'Add text block') : (initial?.url ? 'Edit link' : 'Add link')}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
         {widgetType === 'text' ? (
           <Box>
@@ -383,8 +386,9 @@ function Homepage() {
   const [canvasWidth, setCanvasWidth] = useState(800)
 
   // Dialog state.
-  const [pickerType, setPickerType] = useState(null)    // widget type being picked
-  const [textType, setTextType] = useState(null)        // 'text' | 'link'
+  const [pickerType, setPickerType] = useState(null)    // widget type being picked (add)
+  const [textType, setTextType] = useState(null)        // 'text' | 'link' (add)
+  const [editingWidget, setEditingWidget] = useState(null) // widget being edited
 
   const canvasRef = useRef(null)
   const saveTimerRef = useRef(null)
@@ -482,15 +486,49 @@ function Homepage() {
   }
 
   function handlePickerConfirm(item) {
+    if (editingWidget) {
+      handlePickerConfirmEdit(item)
+      return
+    }
     const type = pickerType
     setPickerType(null)
     addWidget(type, { content_id: item.id, label: item.title || item.caption || '' })
   }
 
   function handleTextConfirm(extra) {
-    const type = textType
-    setTextType(null)
-    addWidget(type, extra)
+    if (editingWidget) {
+      updateWidget(editingWidget.id, extra)
+      setEditingWidget(null)
+    } else {
+      const type = textType
+      setTextType(null)
+      addWidget(type, extra)
+    }
+  }
+
+  function updateWidget(id, extra) {
+    setWidgets((prev) => {
+      const updated = prev.map((w) => w.id === id ? { ...w, ...extra } : w)
+      scheduleSave(updated)
+      return updated
+    })
+  }
+
+  function handleEditWidget(widget) {
+    setEditingWidget(widget)
+    if (widget.type === 'text' || widget.type === 'link') {
+      setTextType(widget.type)
+    } else if (CONTENT_TYPES.has(widget.type)) {
+      setPickerType(widget.type)
+    }
+  }
+
+  function handlePickerConfirmEdit(item) {
+    if (editingWidget) {
+      updateWidget(editingWidget.id, { content_id: item.id, label: item.title || item.caption || '' })
+      setEditingWidget(null)
+    }
+    setPickerType(null)
   }
 
   if (loading) {
@@ -592,6 +630,7 @@ function Homepage() {
                 <WidgetCard
                   widget={widget}
                   onRemove={removeWidget}
+                  onEdit={handleEditWidget}
                   available={available}
                 />
               </div>
@@ -643,15 +682,16 @@ function Homepage() {
         widgetType={pickerType}
         available={available}
         onPick={handlePickerConfirm}
-        onClose={() => setPickerType(null)}
+        onClose={() => { setPickerType(null); setEditingWidget(null) }}
       />
 
       {/* Text / link input dialog */}
       <TextInputDialog
         open={Boolean(textType)}
         widgetType={textType}
+        initial={editingWidget}
         onConfirm={handleTextConfirm}
-        onClose={() => setTextType(null)}
+        onClose={() => { setTextType(null); setEditingWidget(null) }}
       />
     </Box>
   )
