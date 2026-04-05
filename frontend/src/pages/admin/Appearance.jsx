@@ -13,12 +13,12 @@ const UI_FONTS = ['Inter', 'Lato', 'Source Sans 3', 'Nunito', 'Open Sans', 'Robo
 
 // Default site theme matching server-side DefaultSiteTheme values.
 const DEFAULT_SITE_THEME = {
-  accent_h: 340, accent_s: 50, accent_l: 35,
-  bg_h: 38, bg_s: 30, bg_l: 97,
+  accent_h: 340, accent_s: 54, accent_l: 39,
+  bg_h: 38, bg_s: 44, bg_l: 89,
   text_h: 220, text_s: 20, text_l: 15,
   heading_h: 220, heading_s: 25, heading_l: 10,
-  dark_accent_h: 36, dark_accent_s: 70, dark_accent_l: 58,
-  dark_bg_h: 222, dark_bg_s: 22, dark_bg_l: 11,
+  dark_accent_h: 197, dark_accent_s: 61, dark_accent_l: 63,
+  dark_bg_h: 232, dark_bg_s: 28, dark_bg_l: 20,
   dark_text_h: 36, dark_text_s: 15, dark_text_l: 88,
   dark_heading_h: 36, dark_heading_s: 20, dark_heading_l: 95,
   font_body: 'Playfair Display',

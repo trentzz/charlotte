@@ -65,6 +65,8 @@ export default function GalleryAlbum() {
   const albumData = data?.album
   const subAlbums = data?.sub_albums || []
   const hasSubAlbums = subAlbums.length > 0
+  const parentAlbum = data?.parent_album || null
+  const isSubAlbum = !!parentAlbum
   const photos = filteredPhotos !== null ? filteredPhotos : (data?.photos || [])
   const photoCount = photos.length
 
@@ -100,8 +102,8 @@ export default function GalleryAlbum() {
         )}
       </Box>
 
-      {/* Sub-album navigation */}
-      {hasSubAlbums && (
+      {/* Sub-album navigation when viewing a parent album */}
+      {hasSubAlbums && !isSubAlbum && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
           <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
             <Button
@@ -124,6 +126,35 @@ export default function GalleryAlbum() {
               <Button
                 key={sub.id}
                 variant="outlined"
+                size="small"
+                component={RouterLink}
+                to={`/u/${username}/gallery/${sub.slug}`}
+                sx={{ borderRadius: 4 }}
+              >
+                {sub.title}
+              </Button>
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      {/* Sibling navigation when viewing a sub-album */}
+      {isSubAlbum && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Button
+              variant="outlined"
+              size="small"
+              component={RouterLink}
+              to={`/u/${username}/gallery/${parentAlbum.slug}`}
+              sx={{ borderRadius: 4 }}
+            >
+              All
+            </Button>
+            {(parentAlbum.sub_albums || []).map((sub) => (
+              <Button
+                key={sub.id}
+                variant={sub.slug === album ? 'contained' : 'outlined'}
                 size="small"
                 component={RouterLink}
                 to={`/u/${username}/gallery/${sub.slug}`}

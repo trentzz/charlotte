@@ -62,10 +62,21 @@ func (a *App) GalleryAlbum(w http.ResponseWriter, r *http.Request) {
 		photos, _ = models.ListPhotosByAlbum(a.DB, album.ID)
 	}
 
-	a.respondJSON(w, http.StatusOK, map[string]any{
+	resp := map[string]any{
 		"album":      toAlbumJSON(album),
 		"photos":     toPhotoList(photos),
 		"is_owner":   isOwner,
 		"sub_albums": toAlbumList(album.SubAlbums),
-	})
+	}
+
+	// If this is a sub-album, include the parent album so the frontend can
+	// render sibling navigation without a second round-trip.
+	if album.ParentID != nil {
+		parent, err := models.GetAlbumByID(a.DB, *album.ParentID)
+		if err == nil && (parent.Published || isOwner) {
+			resp["parent_album"] = toAlbumJSON(parent)
+		}
+	}
+
+	a.respondJSON(w, http.StatusOK, resp)
 }
