@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	// MaxUploadBytes is the maximum allowed file size for image uploads (10 MB).
-	MaxUploadBytes = 10 << 20
+	// MaxUploadBytes is the maximum allowed file size for image uploads (30 MB).
+	MaxUploadBytes = 30 << 20
 )
 
 // allowedMIMETypes is the set of MIME types accepted for photo uploads.
