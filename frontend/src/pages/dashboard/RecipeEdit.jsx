@@ -4,13 +4,14 @@ import {
   Box, Typography, TextField, Button, Alert, CircularProgress,
   Stack, Divider, IconButton, Paper, List, ListItem, ListItemText,
   ListItemSecondaryAction, Dialog, DialogTitle, DialogContent, DialogActions,
-  Tooltip, Checkbox,
+  Tooltip, Checkbox, Chip,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
+import CheckIcon from '@mui/icons-material/Check'
 import {
   DndContext,
   closestCenter,
@@ -377,6 +378,7 @@ export default function RecipeEdit() {
     servings: '',
     notes: '',
   })
+  const [published, setPublished] = useState(false)
   const [ingredientsGroups, setIngredientsGroups] = useState([{ title: '', items: [] }])
   const [methodGroups, setMethodGroups] = useState([{ title: '', steps: [] }])
   const [variations, setVariations] = useState([])
@@ -387,6 +389,8 @@ export default function RecipeEdit() {
   const [galleryPickerOpen, setGalleryPickerOpen] = useState(false)
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [toggling, setToggling] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -403,6 +407,7 @@ export default function RecipeEdit() {
           servings: r.servings ?? '',
           notes: r.notes || '',
         })
+        setPublished(Boolean(r.published))
 
         // Prefer structured groups; fall back to flat arrays from legacy data.
         if (r.ingredients_groups && r.ingredients_groups.length > 0) {
@@ -563,6 +568,8 @@ export default function RecipeEdit() {
         navigate(`/dashboard/recipes/${newId}`, { replace: true })
       } else {
         await client.put(`/dashboard/recipes/${id}`, payload)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 1500)
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save recipe.')
@@ -571,13 +578,46 @@ export default function RecipeEdit() {
     }
   }
 
+  async function handleTogglePublish() {
+    setToggling(true)
+    try {
+      await client.patch(`/dashboard/recipes/${id}/toggle`)
+      setPublished((prev) => !prev)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update publish status.')
+    } finally {
+      setToggling(false)
+    }
+  }
+
   if (loading) return <CircularProgress />
 
   return (
     <Box maxWidth={720}>
-      <Typography variant="h5" fontWeight={700} gutterBottom>
-        {isNew ? 'New recipe' : 'Edit recipe'}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="h5" fontWeight={700}>
+          {isNew ? 'New recipe' : 'Edit recipe'}
+        </Typography>
+        {!isNew && (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleTogglePublish}
+            disabled={toggling}
+            color={published ? 'warning' : 'success'}
+          >
+            {toggling ? '…' : published ? 'Unpublish' : 'Publish'}
+          </Button>
+        )}
+      </Box>
+      {!isNew && (
+        <Chip
+          label={published ? 'Published' : 'Draft'}
+          size="small"
+          color={published ? 'success' : 'default'}
+          sx={{ mb: 2 }}
+        />
+      )}
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
@@ -801,8 +841,14 @@ export default function RecipeEdit() {
         />
 
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="contained" onClick={handleSave} disabled={saving || !form.title}>
-            {saving ? 'Saving…' : isNew ? 'Create recipe' : 'Save changes'}
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={saving || !form.title}
+            color={saved ? 'success' : 'primary'}
+            startIcon={saved ? <CheckIcon /> : null}
+          >
+            {saving ? 'Saving…' : saved ? 'Changes saved' : isNew ? 'Create recipe' : 'Save changes'}
           </Button>
           <Button onClick={() => navigate('/dashboard/recipes')} disabled={saving}>
             Cancel

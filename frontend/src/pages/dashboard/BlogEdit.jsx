@@ -6,6 +6,7 @@ import {
 } from '@mui/material'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
+import CheckIcon from '@mui/icons-material/Check'
 import client from '../../api/client.js'
 import GalleryPhotoPicker from '../../components/GalleryPhotoPicker.jsx'
 
@@ -46,6 +47,7 @@ export default function BlogEdit() {
   const [tagInput, setTagInput] = useState('')
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
   const [quillReady, setQuillReady] = useState(false)
   const QuillRef = useRef(null)
@@ -141,6 +143,8 @@ export default function BlogEdit() {
         navigate(`/dashboard/blog/${newId}`, { replace: true })
       } else {
         await client.put(`/dashboard/blog/${id}`, form)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 1500)
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save post.')
@@ -277,8 +281,10 @@ export default function BlogEdit() {
             variant="contained"
             onClick={handleSave}
             disabled={saving || !form.title}
+            color={saved ? 'success' : 'primary'}
+            startIcon={saved ? <CheckIcon /> : null}
           >
-            {saving ? 'Saving…' : isNew ? 'Create post' : 'Save changes'}
+            {saving ? 'Saving…' : saved ? 'Changes saved' : isNew ? 'Create post' : 'Save changes'}
           </Button>
           <Button onClick={() => navigate('/dashboard/blog')} disabled={saving}>
             Cancel

@@ -3,6 +3,7 @@ import {
   Box, Typography, TextField, Button, Alert, CircularProgress,
   Avatar, Stack, Divider, FormControlLabel, Switch,
 } from '@mui/material'
+import CheckIcon from '@mui/icons-material/Check'
 import client from '../../api/client.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNavData } from '../../context/NavDataContext.jsx'
@@ -13,6 +14,7 @@ export default function Profile() {
   const [form, setForm] = useState({ display_name: '', bio: '', location: '', website: '', show_on_homepage: true })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
@@ -49,6 +51,8 @@ export default function Profile() {
     try {
       await client.put('/dashboard/profile', form)
       setSuccess('Profile saved.')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
       await refresh()
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save profile.')
@@ -147,8 +151,14 @@ export default function Profile() {
           onChange={handleChange}
           type="url"
         />
-        <Button type="submit" variant="contained" disabled={saving}>
-          {saving ? 'Saving…' : 'Save profile'}
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={saving}
+          color={saved ? 'success' : 'primary'}
+          startIcon={saved ? <CheckIcon /> : null}
+        >
+          {saving ? 'Saving…' : saved ? 'Changes saved' : 'Save profile'}
         </Button>
       </Box>
     </Box>

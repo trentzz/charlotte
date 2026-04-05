@@ -12,6 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
+import CheckIcon from '@mui/icons-material/Check'
 import client from '../../api/client.js'
 import GalleryPhotoPicker from '../../components/GalleryPhotoPicker.jsx'
 
@@ -53,6 +54,7 @@ function ProjectEditor({ projectId, onBack }) {
   const [allPosts, setAllPosts] = useState([])
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
   const [quillReady, setQuillReady] = useState(false)
   const QuillRef = useRef(null)
@@ -154,6 +156,8 @@ function ProjectEditor({ projectId, onBack }) {
         onBack(created)
       } else {
         await client.put(`/dashboard/projects/${projectId}`, form)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 1500)
         onBack(null)
       }
     } catch (err) {
@@ -326,8 +330,10 @@ function ProjectEditor({ projectId, onBack }) {
             variant="contained"
             onClick={handleSave}
             disabled={saving || !form.title}
+            color={saved ? 'success' : 'primary'}
+            startIcon={saved ? <CheckIcon /> : null}
           >
-            {saving ? 'Saving…' : isNew ? 'Create project' : 'Save changes'}
+            {saving ? 'Saving…' : saved ? 'Changes saved' : isNew ? 'Create project' : 'Save changes'}
           </Button>
           <Button onClick={() => onBack(null)} disabled={saving}>
             Cancel
