@@ -289,6 +289,39 @@ Default site theme: deep burgundy accent (H=340, S=50, L=35), warm ivory backgro
 - Kubernetes: single replica (SQLite single-writer), ClusterIP service, ReadWriteOnce PVC.
 - Reverse proxy (nginx/traefik) handles TLS; app speaks plain HTTP on the configured `PORT` (default 9271).
 
+### Changing the data directory
+
+All persistent data (database and uploads) lives in one directory. Two environment variables control it:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATA_DIR` | `/data` | Path inside the container where the database and uploads are stored |
+| `PORT` | `9271` | Port the server listens on |
+
+**In `docker-compose.yml`**, change the left side of the volume bind-mount to point to any directory on the host:
+
+```yaml
+volumes:
+  - /opt/charlotte-data:/data   # host path : container path
+environment:
+  DATA_DIR: /data               # must match the container path
+```
+
+To use a different path inside the container as well:
+
+```yaml
+volumes:
+  - /opt/charlotte-data:/mydata
+environment:
+  DATA_DIR: /mydata
+```
+
+The data directory contains:
+- `db/charlotte.db` — SQLite database (all content, users, settings)
+- `uploads/` — user-uploaded photos and avatars
+
+**Migrating an existing installation**: stop the container, copy the old data directory to the new location, update `docker-compose.yml`, then restart.
+
 ### Update scripts
 
 Two helper scripts are provided for keeping a deployment up to date:
