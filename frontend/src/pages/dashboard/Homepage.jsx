@@ -333,13 +333,15 @@ function TextInputDialog({ open, widgetType, initial, onConfirm, onClose }) {
                 onChange={setContent}
                 modules={{
                   toolbar: [
-                    ['bold', 'italic'],
-                    [{ list: 'bullet' }, { list: 'ordered' }],
+                    [{ header: [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    ['blockquote'],
+                    [{ list: 'ordered' }, { list: 'bullet' }],
                     ['link'],
                     ['clean'],
                   ],
                 }}
-                style={{ height: 160, marginBottom: 42 }}
+                style={{ height: 220, marginBottom: 42 }}
               />
             ) : (
               <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
