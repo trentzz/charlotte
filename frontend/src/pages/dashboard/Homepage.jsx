@@ -6,7 +6,7 @@ import {
   Box, Typography, Paper, IconButton, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, List, ListItemButton, ListItemText,
   ListItemAvatar, Avatar, TextField, CircularProgress, Chip, Divider,
-  Alert,
+  Alert, useMediaQuery,
 } from '@mui/material'
 import PersonIcon from '@mui/icons-material/Person'
 import TextFieldsIcon from '@mui/icons-material/TextFields'
@@ -341,6 +341,7 @@ function TextInputDialog({ open, widgetType, onConfirm, onClose }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 function Homepage() {
+  const isWide = useMediaQuery('(min-width: 1400px)')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [saveStatus, setSaveStatus] = useState('idle') // idle | saving | saved | error
@@ -500,58 +501,20 @@ function Homepage() {
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
-        {/* Left palette */}
-        <Box sx={{ width: 240, flexShrink: 0 }}>
-          <Typography variant="overline" sx={{ display: 'block', mb: 1, color: 'text.secondary', fontSize: 11, letterSpacing: '0.08em' }}>
-            Widgets
-          </Typography>
-          {PALETTE.map((entry) => {
-            const Icon = entry.Icon
-            const colour = WIDGET_COLOURS[entry.type]
-            return (
-              <Paper
-                key={entry.type}
-                variant="outlined"
-                sx={{ mb: 1, p: 1.5, borderRadius: 1.5 }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
-                  <Icon sx={{ fontSize: 18, color: colour }} />
-                  <Typography variant="body2" fontWeight={600} sx={{ flexGrow: 1, fontSize: 13 }}>
-                    {entry.label}
-                  </Typography>
-                </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, lineHeight: 1.3 }}>
-                  {entry.description}
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  fullWidth
-                  onClick={() => handlePaletteAdd(entry.type)}
-                  sx={{ fontSize: 12, py: 0.25, borderColor: colour, color: colour, '&:hover': { borderColor: colour, bgcolor: colour + '11' } }}
-                >
-                  Add
-                </Button>
-              </Paper>
-            )
-          })}
-        </Box>
-
-        {/* Right canvas */}
+      <Box sx={{ display: 'flex', flexDirection: isWide ? 'row' : 'column', gap: 3, alignItems: 'flex-start' }}>
+        {/* Canvas — always first, takes all available width */}
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Box
             ref={canvasRef}
             sx={{
               width: '100%',
-              minHeight: 500,
+              minHeight: 600,
               borderRadius: 2,
               border: '1px solid',
               borderColor: 'divider',
               bgcolor: 'background.paper',
               backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.08) 1px, transparent 1px)',
               backgroundSize: `calc(100% / 12) 80px`,
-              overflow: 'hidden',
               position: 'relative',
             }}
           >
@@ -567,7 +530,7 @@ function Homepage() {
                 }}
               >
                 <Typography color="text.disabled" variant="body2">
-                  Add widgets from the panel on the left.
+                  Add widgets from the palette.
                 </Typography>
               </Box>
             )}
@@ -580,7 +543,7 @@ function Homepage() {
               onLayoutChange={handleLayoutChange}
               draggableHandle=".widget-drag-handle"
               compactType="vertical"
-              resizeHandles={['se']}
+              resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
               margin={[8, 8]}
             >
               {widgets.filter((w) => w.id).map((widget) => (
@@ -593,6 +556,50 @@ function Homepage() {
                 </div>
               ))}
             </GridLayout>
+          </Box>
+        </Box>
+
+        {/* Widget palette — right column on wide screens, grid below canvas on narrow */}
+        <Box sx={{ width: isWide ? 220 : '100%', flexShrink: 0 }}>
+          <Typography variant="overline" sx={{ display: 'block', mb: 1, color: 'text.secondary', fontSize: 11, letterSpacing: '0.08em' }}>
+            Widgets
+          </Typography>
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: isWide ? '1fr' : 'repeat(auto-fill, minmax(160px, 1fr))',
+            gap: 1,
+          }}>
+            {PALETTE.map((entry) => {
+              const Icon = entry.Icon
+              const colour = WIDGET_COLOURS[entry.type]
+              return (
+                <Paper
+                  key={entry.type}
+                  variant="outlined"
+                  sx={{ p: 1.5, borderRadius: 1.5 }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    <Icon sx={{ fontSize: 16, color: colour, flexShrink: 0 }} />
+                    <Typography variant="body2" fontWeight={600} sx={{ flexGrow: 1, fontSize: 12 }}>
+                      {entry.label}
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handlePaletteAdd(entry.type)}
+                      sx={{ fontSize: 11, py: 0.1, px: 1, minWidth: 0, flexShrink: 0, borderColor: colour, color: colour, '&:hover': { borderColor: colour, bgcolor: colour + '11' } }}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+                  {isWide && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
+                      {entry.description}
+                    </Typography>
+                  )}
+                </Paper>
+              )
+            })}
           </Box>
         </Box>
       </Box>
