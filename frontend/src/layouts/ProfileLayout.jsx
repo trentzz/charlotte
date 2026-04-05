@@ -9,6 +9,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
+import Switch from '@mui/material/Switch'
 import client from '../api/client.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ThemeModeProvider, useThemeMode } from '../context/ThemeModeContext.jsx'
@@ -260,9 +261,17 @@ function ProfileLayoutInner({ username, profile, navData }) {
               </Box>
 
               {/* Dark/light toggle */}
-              <IconButton onClick={toggleMode} color="inherit" size="small" sx={{ ml: 1 }}>
-                {mode === 'dark' ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
-              </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, opacity: 0.8 }}>
+                <LightModeIcon sx={{ fontSize: 14, mr: 0.25 }} />
+                <Switch
+                  checked={mode === 'dark'}
+                  onChange={toggleMode}
+                  size="small"
+                  color="default"
+                  sx={{ mx: 0 }}
+                />
+                <DarkModeIcon sx={{ fontSize: 14, ml: 0.25 }} />
+              </Box>
 
               {/* Account button with icon + text for logged-in users */}
               {authUser && (

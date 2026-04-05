@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import {
   Box, Container, Typography, Button, Grid, Avatar,
-  CircularProgress, Alert, AppBar, Toolbar, IconButton,
+  CircularProgress, Alert, AppBar, Toolbar, Switch,
 } from '@mui/material'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import LightModeIcon from '@mui/icons-material/LightMode'
@@ -120,9 +120,17 @@ function LandingInner({ settings, users, error }) {
               Charlotte
             </Typography>
 
-            <IconButton onClick={toggleMode} color="inherit" size="small" sx={{ mr: 1 }}>
-              {mode === 'dark' ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
-            </IconButton>
+            <Box sx={{ display: 'flex', alignItems: 'center', mr: 1, opacity: 0.8 }}>
+              <LightModeIcon sx={{ fontSize: 14, mr: 0.25 }} />
+              <Switch
+                checked={mode === 'dark'}
+                onChange={toggleMode}
+                size="small"
+                color="default"
+                sx={{ mx: 0 }}
+              />
+              <DarkModeIcon sx={{ fontSize: 14, ml: 0.25 }} />
+            </Box>
 
             {user ? (
               <Button component={RouterLink} to="/dashboard" color="inherit" size="small">
