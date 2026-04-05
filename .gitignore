@@ -1,5 +1,5 @@
-# compiled binary
-charlotte
+# compiled binary (root only, not cmd/charlotte/)
+/charlotte
 
 # runtime data (database and uploads)
 data/
