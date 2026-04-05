@@ -544,74 +544,68 @@ function Homepage() {
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', flexDirection: isWide ? 'row' : 'column', gap: 3, alignItems: 'flex-start' }}>
-        {/* Canvas — always first, takes all available width */}
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Box
-            ref={canvasRef}
-            sx={{
-              width: '100%',
-              minHeight: 600,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.08) 1px, transparent 1px)',
-              backgroundSize: `calc(100% / 12) 80px`,
-              position: 'relative',
-            }}
-          >
-            {widgets.length === 0 && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  pointerEvents: 'none',
-                }}
-              >
-                <Typography color="text.disabled" variant="body2">
-                  Add widgets from the palette.
-                </Typography>
-              </Box>
-            )}
-            <GridLayout
-              className="layout"
-              layout={gridLayout}
-              cols={12}
-              rowHeight={80}
-              width={canvasWidth}
-              onLayoutChange={handleLayoutChange}
-              draggableHandle=".widget-drag-handle"
-              compactType="vertical"
-              resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
-              margin={[8, 8]}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {/* Canvas */}
+        <Box
+          ref={canvasRef}
+          sx={{
+            width: '100%',
+            minHeight: 600,
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.08) 1px, transparent 1px)',
+            backgroundSize: `calc(100% / 12) 80px`,
+            position: 'relative',
+          }}
+        >
+          {widgets.length === 0 && (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+              }}
             >
-              {widgets.filter((w) => w.id).map((widget) => (
-                <div key={widget.id} style={{ boxSizing: 'border-box' }}>
-                  <WidgetCard
-                    widget={widget}
-                    onRemove={removeWidget}
-                    available={available}
-                  />
-                </div>
-              ))}
-            </GridLayout>
-          </Box>
+              <Typography color="text.disabled" variant="body2">
+                Add widgets from the palette below.
+              </Typography>
+            </Box>
+          )}
+          <GridLayout
+            className="layout"
+            layout={gridLayout}
+            cols={12}
+            rowHeight={80}
+            width={canvasWidth}
+            onLayoutChange={handleLayoutChange}
+            draggableHandle=".widget-drag-handle"
+            compactType="vertical"
+            resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
+            margin={[8, 8]}
+          >
+            {widgets.filter((w) => w.id).map((widget) => (
+              <div key={widget.id} style={{ boxSizing: 'border-box' }}>
+                <WidgetCard
+                  widget={widget}
+                  onRemove={removeWidget}
+                  available={available}
+                />
+              </div>
+            ))}
+          </GridLayout>
         </Box>
 
-        {/* Widget palette — right column on wide screens, grid below canvas on narrow */}
-        <Box sx={{ width: isWide ? 220 : '100%', flexShrink: 0 }}>
+        {/* Widget palette — horizontal scrollable row below canvas */}
+        <Box>
           <Typography variant="overline" sx={{ display: 'block', mb: 1, color: 'text.secondary', fontSize: 11, letterSpacing: '0.08em' }}>
-            Widgets
+            Add widgets
           </Typography>
-          <Box sx={{
-            display: 'grid',
-            gridTemplateColumns: isWide ? '1fr' : 'repeat(auto-fill, minmax(160px, 1fr))',
-            gap: 1,
-          }}>
+          <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', pb: 1 }}>
             {PALETTE.map((entry) => {
               const Icon = entry.Icon
               const colour = WIDGET_COLOURS[entry.type]
@@ -619,27 +613,25 @@ function Homepage() {
                 <Paper
                   key={entry.type}
                   variant="outlined"
-                  sx={{ p: 1.5, borderRadius: 1.5 }}
+                  sx={{ p: 1.25, borderRadius: 1.5, flexShrink: 0, minWidth: 120 }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                    <Icon sx={{ fontSize: 16, color: colour, flexShrink: 0 }} />
-                    <Typography variant="body2" fontWeight={600} sx={{ flexGrow: 1, fontSize: 12 }}>
-                      {entry.label}
-                    </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, alignItems: 'flex-start' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <Icon sx={{ fontSize: 15, color: colour }} />
+                      <Typography variant="body2" fontWeight={600} sx={{ fontSize: 12 }}>
+                        {entry.label}
+                      </Typography>
+                    </Box>
                     <Button
                       size="small"
                       variant="outlined"
+                      fullWidth
                       onClick={() => handlePaletteAdd(entry.type)}
-                      sx={{ fontSize: 11, py: 0.1, px: 1, minWidth: 0, flexShrink: 0, borderColor: colour, color: colour, '&:hover': { borderColor: colour, bgcolor: colour + '11' } }}
+                      sx={{ fontSize: 11, py: 0.25, minWidth: 0, borderColor: colour, color: colour, '&:hover': { borderColor: colour, bgcolor: colour + '11' } }}
                     >
                       Add
                     </Button>
                   </Box>
-                  {isWide && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
-                      {entry.description}
-                    </Typography>
-                  )}
                 </Paper>
               )
             })}
