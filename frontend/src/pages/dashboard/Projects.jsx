@@ -60,6 +60,7 @@ function ProjectEditor({ projectId, onBack }) {
   const QuillRef = useRef(null)
   const quillEditorRef = useRef(null)
   const [uploading, setUploading] = useState(false)
+  const [postSearch, setPostSearch] = useState('')
   const [coverPickerOpen, setCoverPickerOpen] = useState(false)
   const [bodyPickerOpen, setBodyPickerOpen] = useState(false)
   const imageInputRef = useRef(null)
@@ -314,8 +315,8 @@ function ProjectEditor({ projectId, onBack }) {
             options={availablePosts}
             getOptionLabel={(p) => p.title || ''}
             onChange={(_, value) => addLinkedPost(value)}
-            inputValue=""
-            onInputChange={() => {}}
+            inputValue={postSearch}
+            onInputChange={(_, v) => setPostSearch(v)}
             renderInput={(params) => (
               <TextField {...params} size="small" placeholder="Search posts to link…" sx={{ maxWidth: 360 }} />
             )}

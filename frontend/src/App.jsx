@@ -6,7 +6,6 @@ import { AuthProvider } from './context/AuthContext.jsx'
 // Layouts
 import PublicLayout from './layouts/PublicLayout.jsx'
 import ProfileLayout from './layouts/ProfileLayout.jsx'
-import DashboardLayout from './layouts/DashboardLayout.jsx'
 import SettingsLayout from './layouts/SettingsLayout.jsx'
 
 // Public pages

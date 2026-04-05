@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,9 @@ import (
 	"github.com/trentzz/charlotte/internal/models"
 	"github.com/trentzz/charlotte/internal/storage"
 )
+
+// fontNameRE validates font names: letters, digits, spaces, and hyphens only.
+var fontNameRE = regexp.MustCompile(`^[A-Za-z0-9 \-]+$`)
 
 // DashProfile handles GET /api/v1/dashboard/profile — returns full current user.
 func (a *App) DashProfile(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +170,20 @@ func (a *App) DashAppearanceSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate font names before accepting any other values.
+	if body.FontBody != "" && !fontNameRE.MatchString(body.FontBody) {
+		a.respondError(w, http.StatusBadRequest, "invalid font name")
+		return
+	}
+	if body.FontDisplay != "" && !fontNameRE.MatchString(body.FontDisplay) {
+		a.respondError(w, http.StatusBadRequest, "invalid font name")
+		return
+	}
+	if body.FontUI != "" && !fontNameRE.MatchString(body.FontUI) {
+		a.respondError(w, http.StatusBadRequest, "invalid font name")
+		return
+	}
+
 	// Validate and clamp values.
 	theme := models.DefaultTheme()
 	theme.AccentH = clamp(body.AccentH, 0, 360)
@@ -268,7 +286,12 @@ func sendVerificationEmail(smtpHost, to, token string) error {
 	}
 
 	addr := smtpHost + ":" + port
-	link := "/api/v1/verify-email?token=" + token
+
+	baseURL := os.Getenv("CHARLOTTE_BASE_URL")
+	if baseURL == "" {
+		fmt.Printf("CHARLOTTE_BASE_URL not set; verification link will be relative\n")
+	}
+	link := baseURL + "/api/v1/verify-email?token=" + token
 
 	body := "To: " + to + "\r\n" +
 		"From: " + from + "\r\n" +

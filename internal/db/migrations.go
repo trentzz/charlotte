@@ -247,6 +247,52 @@ var migrations = []string{
 	// 29: email verification columns
 	`ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0`,
 	`ALTER TABLE users ADD COLUMN email_verify_token TEXT`,
+
+	// 30: verification token expiry
+	`ALTER TABLE users ADD COLUMN email_verify_token_expires_at INTEGER`,
+
+	// 31: allow NULL email — recreate users table without NOT NULL on email.
+	// SQLite does not support ALTER COLUMN so we use the rename-and-recreate approach.
+	`CREATE TABLE IF NOT EXISTS users_new (
+		id            INTEGER PRIMARY KEY,
+		username      TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+		email         TEXT    UNIQUE COLLATE NOCASE,
+		password_hash TEXT    NOT NULL,
+		display_name  TEXT    NOT NULL DEFAULT '',
+		bio           TEXT    NOT NULL DEFAULT '',
+		avatar_path   TEXT    NOT NULL DEFAULT '',
+		role          TEXT    NOT NULL DEFAULT 'user'
+		                      CHECK(role IN ('user','admin')),
+		status        TEXT    NOT NULL DEFAULT 'pending'
+		                      CHECK(status IN ('pending','active','suspended')),
+		feature_blog    INTEGER NOT NULL DEFAULT 0 CHECK(feature_blog    IN (0,1)),
+		feature_about   INTEGER NOT NULL DEFAULT 0 CHECK(feature_about   IN (0,1)),
+		feature_gallery INTEGER NOT NULL DEFAULT 0 CHECK(feature_gallery IN (0,1)),
+		feature_recipes INTEGER NOT NULL DEFAULT 0 CHECK(feature_recipes IN (0,1)),
+		links         TEXT    NOT NULL DEFAULT '[]',
+		created_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+		updated_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+		theme_json    TEXT    NOT NULL DEFAULT '{}',
+		feature_projects INTEGER NOT NULL DEFAULT 0 CHECK(feature_projects IN (0,1)),
+		homepage_json TEXT    NOT NULL DEFAULT '{}',
+		show_on_homepage INTEGER NOT NULL DEFAULT 1,
+		email_verified INTEGER NOT NULL DEFAULT 0,
+		email_verify_token TEXT,
+		email_verify_token_expires_at INTEGER
+	)`,
+	`INSERT INTO users_new SELECT
+		id, username, NULLIF(email,''), password_hash,
+		display_name, bio, avatar_path, role, status,
+		feature_blog, feature_about, feature_gallery, feature_recipes,
+		links, created_at, updated_at,
+		theme_json, feature_projects, homepage_json,
+		show_on_homepage, email_verified, email_verify_token,
+		email_verify_token_expires_at
+	FROM users`,
+	`DROP TABLE users`,
+	`ALTER TABLE users_new RENAME TO users`,
+	`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`,
+	`CREATE INDEX IF NOT EXISTS idx_users_status   ON users(status)`,
 }
 
 // migrate runs any migrations that have not yet been applied, in order.

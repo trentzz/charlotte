@@ -65,6 +65,20 @@ func (a *App) AdminSiteAppearanceSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate font names before accepting any other values.
+	if body.FontBody != "" && !fontNameRE.MatchString(body.FontBody) {
+		a.respondError(w, http.StatusBadRequest, "invalid font name")
+		return
+	}
+	if body.FontDisplay != "" && !fontNameRE.MatchString(body.FontDisplay) {
+		a.respondError(w, http.StatusBadRequest, "invalid font name")
+		return
+	}
+	if body.FontUI != "" && !fontNameRE.MatchString(body.FontUI) {
+		a.respondError(w, http.StatusBadRequest, "invalid font name")
+		return
+	}
+
 	theme := models.DefaultSiteTheme()
 	theme.AccentH = clamp(body.AccentH, 0, 360)
 	theme.AccentS = clamp(body.AccentS, 0, 100)

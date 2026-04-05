@@ -135,7 +135,11 @@ func (a *App) AdminPhotoDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	deleted, err := models.DeletePhoto(a.DB, id)
-	if err == nil && deleted != nil {
+	if err != nil {
+		a.respondError(w, http.StatusInternalServerError, "failed to delete photo")
+		return
+	}
+	if deleted != nil {
 		_ = storage.DeleteUpload(a.DataDir, deleted.UserID, deleted.Filename)
 	}
 	a.respondJSON(w, http.StatusOK, map[string]string{"message": "photo deleted"})

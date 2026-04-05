@@ -154,10 +154,11 @@ func scanUser(row interface {
 	var showOnHomepage int
 	var emailVerified int
 	var emailVerifyToken sql.NullString
+	var email sql.NullString
 	var createdAt, updatedAt int64
 
 	err := row.Scan(
-		&u.ID, &u.Username, &u.Email, &u.PasswordHash,
+		&u.ID, &u.Username, &email, &u.PasswordHash,
 		&u.DisplayName, &u.Bio, &u.AvatarPath,
 		&u.Role, &u.Status,
 		&u.FeatureBlog, &u.FeatureAbout, &u.FeatureGallery, &u.FeatureRecipes,
@@ -168,6 +169,7 @@ func scanUser(row interface {
 	if err != nil {
 		return nil, err
 	}
+	u.Email = email.String
 
 	if err := json.Unmarshal([]byte(linksJSON), &u.Links); err != nil {
 		u.Links = nil
@@ -200,12 +202,23 @@ func CreateUser(db *sql.DB, u *User) (int64, error) {
 		linksJSON = []byte("[]")
 	}
 
+	// Store NULL for email when blank so the UNIQUE constraint does not conflict
+	// across multiple no-email accounts.
+	var email *string
+	if u.Email != "" {
+		email = &u.Email
+	}
+
 	res, err := db.Exec(`INSERT INTO users
-		(username, email, password_hash, display_name, bio, avatar_path, role, status, links)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		u.Username, u.Email, u.PasswordHash,
+		(username, email, password_hash, display_name, bio, avatar_path, role, status, links,
+		 feature_blog, feature_about, feature_gallery, feature_recipes, feature_projects)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		u.Username, email, u.PasswordHash,
 		u.DisplayName, u.Bio, u.AvatarPath,
 		u.Role, u.Status, string(linksJSON),
+		boolToInt(u.FeatureBlog), boolToInt(u.FeatureAbout),
+		boolToInt(u.FeatureGallery), boolToInt(u.FeatureRecipes),
+		boolToInt(u.FeatureProjects),
 	)
 	if err != nil {
 		return 0, fmt.Errorf("create user: %w", err)
@@ -361,17 +374,26 @@ func CountUsers(db *sql.DB) (int, error) {
 	return count, err
 }
 
-// GetUserByVerifyToken returns the user whose email_verify_token matches token,
-// or sql.ErrNoRows if none is found.
+// GetUserByVerifyToken returns the user whose email_verify_token matches token
+// and whose token has not expired, or sql.ErrNoRows if none is found.
 func GetUserByVerifyToken(db *sql.DB, token string) (*User, error) {
-	row := db.QueryRow(userSelect+` WHERE email_verify_token = ?`, token)
+	row := db.QueryRow(
+		userSelect+` WHERE email_verify_token = ? AND email_verify_token_expires_at > unixepoch('now')`,
+		token,
+	)
 	return scanUser(row)
 }
 
-// SetEmailVerifyToken stores a pending verification token for the user.
+// SetEmailVerifyToken stores a pending verification token for the user,
+// expiring 24 hours from now.
 func SetEmailVerifyToken(db *sql.DB, userID int64, token string) error {
 	_, err := db.Exec(
-		`UPDATE users SET email_verify_token = ?, email_verified = 0, updated_at = unixepoch() WHERE id = ?`,
+		`UPDATE users SET
+			email_verify_token = ?,
+			email_verify_token_expires_at = unixepoch('now', '+1 day'),
+			email_verified = 0,
+			updated_at = unixepoch()
+		WHERE id = ?`,
 		token, userID,
 	)
 	return err
@@ -380,7 +402,12 @@ func SetEmailVerifyToken(db *sql.DB, userID int64, token string) error {
 // ConfirmEmailVerified marks the user's email as verified and clears the token.
 func ConfirmEmailVerified(db *sql.DB, userID int64) error {
 	_, err := db.Exec(
-		`UPDATE users SET email_verified = 1, email_verify_token = NULL, updated_at = unixepoch() WHERE id = ?`,
+		`UPDATE users SET
+			email_verified = 1,
+			email_verify_token = NULL,
+			email_verify_token_expires_at = NULL,
+			updated_at = unixepoch()
+		WHERE id = ?`,
 		userID,
 	)
 	return err

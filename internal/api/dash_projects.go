@@ -48,12 +48,12 @@ func (a *App) DashProjectCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	imagePath := normaliseImagePath(body.ImagePath, user.ID)
-	slug := makeUniqueSlug(a.DB, "projects", user.ID, 0, slug.Make(title))
+	projectSlug := makeUniqueSlug(a.DB, "projects", user.ID, 0, slug.Make(title))
 
 	id, err := models.CreateProject(a.DB, &models.Project{
 		UserID:      user.ID,
 		Title:       title,
-		Slug:        slug,
+		Slug:        projectSlug,
 		Description: strings.TrimSpace(body.Description),
 		URL:         strings.TrimSpace(body.URL),
 		ImagePath:   imagePath,
@@ -195,7 +195,7 @@ func (a *App) getOwnedProject(w http.ResponseWriter, r *http.Request, user *mode
 		return nil, false
 	}
 	proj, err := models.GetProjectByID(a.DB, id)
-	if err != nil || proj.UserID != user.ID {
+	if err != nil || (proj.UserID != user.ID && !user.IsAdmin()) {
 		a.respondError(w, http.StatusNotFound, "project not found")
 		return nil, false
 	}

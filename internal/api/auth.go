@@ -96,6 +96,8 @@ func (a *App) Register(w http.ResponseWriter, r *http.Request) {
 			a.internalError(w, r, err)
 			return
 		}
+		// Rotate the CSRF token so the new session starts with a fresh token.
+		middleware.SetCSRFCookie(w)
 		// Re-fetch to get all fields populated.
 		full, err := models.GetUserByID(a.DB, id)
 		if err != nil {
