@@ -3,8 +3,10 @@ import { Outlet, Link as RouterLink, useLocation, useNavigate } from 'react-rout
 import {
   Box, Drawer, AppBar, Toolbar, Typography, List, ListItem,
   ListItemButton, ListItemIcon, ListItemText, Divider, IconButton,
-  Menu, MenuItem, useMediaQuery, useTheme, CircularProgress,
+  Menu, MenuItem, useMediaQuery, useTheme, CircularProgress, Switch,
 } from '@mui/material'
+import LightModeIcon from '@mui/icons-material/LightMode'
+import DarkModeIcon from '@mui/icons-material/DarkMode'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import PersonIcon from '@mui/icons-material/Person'
 import PaletteIcon from '@mui/icons-material/Palette'
@@ -21,6 +23,7 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import MenuIcon from '@mui/icons-material/Menu'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ThemeProvider, CssBaseline } from '@mui/material'
+import { ThemeModeProvider, useThemeMode } from '../context/ThemeModeContext.jsx'
 import buildProfileTheme from '../theme/buildProfileTheme.js'
 
 const DRAWER_WIDTH = 220
@@ -192,7 +195,8 @@ function SidebarContent({ location, user, onClose }) {
   )
 }
 
-export default function DashboardLayout() {
+function DashboardLayoutInner() {
+  const { mode, toggleMode } = useThemeMode()
   const { user, loading, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -224,7 +228,7 @@ export default function DashboardLayout() {
     navigate('/')
   }
 
-  const profileTheme = buildProfileTheme(user?.theme)
+  const profileTheme = buildProfileTheme(user?.theme, mode)
 
   // Shared drawer paper styles: transparent background, right border only
   const drawerPaperSx = {
@@ -296,6 +300,18 @@ export default function DashboardLayout() {
               <Typography variant="subtitle1" sx={{ flexGrow: 1, fontWeight: 600 }}>
                 {isMobile ? (user?.display_name || user?.username || 'Dashboard') : ''}
               </Typography>
+              {/* Dark/light toggle */}
+              <Box sx={{ display: 'flex', alignItems: 'center', mx: 1.5, opacity: 0.75 }}>
+                <LightModeIcon sx={{ fontSize: 14 }} />
+                <Switch
+                  checked={mode === 'dark'}
+                  onChange={toggleMode}
+                  size="small"
+                  color="default"
+                  sx={{ mx: 0.5 }}
+                />
+                <DarkModeIcon sx={{ fontSize: 14 }} />
+              </Box>
               <IconButton onClick={handleAccountClick}>
                 <AccountCircleIcon />
               </IconButton>
@@ -326,5 +342,13 @@ export default function DashboardLayout() {
 
       </Box>
     </ThemeProvider>
+  )
+}
+
+export default function DashboardLayout() {
+  return (
+    <ThemeModeProvider>
+      <DashboardLayoutInner />
+    </ThemeModeProvider>
   )
 }

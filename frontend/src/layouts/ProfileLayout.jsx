@@ -1,41 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Outlet, Link as RouterLink, useParams, useNavigate } from 'react-router-dom'
 import {
-  AppBar, Toolbar, Typography, Box, Button, MenuItem,
-  IconButton, Menu, Divider, CircularProgress, TextField,
+  AppBar, Toolbar, Typography, Box, Button,
+  IconButton, Menu, Divider, CircularProgress, TextField, Paper, Switch,
 } from '@mui/material'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
-import Switch from '@mui/material/Switch'
 import client from '../api/client.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ThemeModeProvider, useThemeMode } from '../context/ThemeModeContext.jsx'
 import buildProfileTheme from '../theme/buildProfileTheme.js'
 
-// A nav button that navigates to the section and opens a dropdown on hover.
+// A nav button that navigates to the section on click and shows a dropdown on
+// hover. The dropdown is an absolutely-positioned child of the wrapper — no
+// MUI Portal — so mouse events never fire when moving between button and list.
 function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
-  const wrapperRef = useRef(null)
-  const closeTimer = useRef(null)
   const [open, setOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
 
-  function openMenu() {
-    clearTimeout(closeTimer.current)
-    setOpen(true)
-  }
-
-  function scheduleClose() {
-    closeTimer.current = setTimeout(() => {
-      setOpen(false)
-      setFilterText('')
-    }, 250)
-  }
-
-  function closeMenu() {
-    clearTimeout(closeTimer.current)
+  function close() {
     setOpen(false)
     setFilterText('')
   }
@@ -53,12 +39,10 @@ function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
     : items
 
   return (
-    // Wrapper catches hover on the button side.
     <Box
-      ref={wrapperRef}
-      onMouseEnter={openMenu}
-      onMouseLeave={scheduleClose}
-      sx={{ display: 'inline-flex' }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={close}
+      sx={{ position: 'relative', display: 'inline-flex' }}
     >
       <Button
         component={RouterLink}
@@ -68,47 +52,54 @@ function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
       >
         {label}
       </Button>
-      <Menu
-        anchorEl={wrapperRef.current}
-        open={open}
-        onClose={closeMenu}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        // PaperProps catches hover on the menu side (covers full Paper, not just the inner list).
-        PaperProps={{
-          onMouseEnter: openMenu,
-          onMouseLeave: scheduleClose,
-          sx: { minWidth: wrapperRef.current?.offsetWidth ?? 120 },
-        }}
-        disableAutoFocusItem
-        disableScrollLock
-        TransitionProps={{ timeout: 0 }}
-      >
-        {items.length > 3 && (
-          <Box sx={{ px: 1.5, pt: 1, pb: 0.5 }}>
-            <TextField
-              size="small"
-              placeholder="Search…"
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              onKeyDown={(e) => e.stopPropagation()}
-              fullWidth
-              sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
-            />
-          </Box>
-        )}
-        {visibleItems.map((item) => (
-          <MenuItem
-            key={item.href}
-            component={RouterLink}
-            to={item.href}
-            onClick={closeMenu}
-            sx={{ fontSize: navFontSize }}
-          >
-            {item.label}
-          </MenuItem>
-        ))}
-      </Menu>
+
+      {open && items.length > 0 && (
+        <Paper
+          elevation={4}
+          sx={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            zIndex: 1300,
+            minWidth: '100%',
+            py: 0.5,
+          }}
+        >
+          {items.length > 3 && (
+            <Box sx={{ px: 1.5, pt: 0.5, pb: 0.5 }}>
+              <TextField
+                size="small"
+                placeholder="Search…"
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+                fullWidth
+                sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
+              />
+            </Box>
+          )}
+          {visibleItems.map((item) => (
+            <Box
+              key={item.href}
+              component={RouterLink}
+              to={item.href}
+              onClick={close}
+              sx={{
+                display: 'block',
+                px: 2,
+                py: 0.75,
+                fontSize: navFontSize,
+                color: 'text.primary',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              {item.label}
+            </Box>
+          ))}
+        </Paper>
+      )}
     </Box>
   )
 }
@@ -261,16 +252,16 @@ function ProfileLayoutInner({ username, profile, navData }) {
               </Box>
 
               {/* Dark/light toggle */}
-              <Box sx={{ display: 'flex', alignItems: 'center', ml: 1, opacity: 0.8 }}>
-                <LightModeIcon sx={{ fontSize: 14, mr: 0.25 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', mx: 1.5, opacity: 0.75 }}>
+                <LightModeIcon sx={{ fontSize: 14 }} />
                 <Switch
                   checked={mode === 'dark'}
                   onChange={toggleMode}
                   size="small"
                   color="default"
-                  sx={{ mx: 0 }}
+                  sx={{ mx: 0.5 }}
                 />
-                <DarkModeIcon sx={{ fontSize: 14, ml: 0.25 }} />
+                <DarkModeIcon sx={{ fontSize: 14 }} />
               </Box>
 
               {/* Account button with icon + text for logged-in users */}

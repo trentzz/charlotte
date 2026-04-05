@@ -120,16 +120,16 @@ function LandingInner({ settings, users, error }) {
               Charlotte
             </Typography>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', mr: 1, opacity: 0.8 }}>
-              <LightModeIcon sx={{ fontSize: 14, mr: 0.25 }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', mx: 1.5, opacity: 0.75 }}>
+              <LightModeIcon sx={{ fontSize: 14 }} />
               <Switch
                 checked={mode === 'dark'}
                 onChange={toggleMode}
                 size="small"
                 color="default"
-                sx={{ mx: 0 }}
+                sx={{ mx: 0.5 }}
               />
-              <DarkModeIcon sx={{ fontSize: 14, ml: 0.25 }} />
+              <DarkModeIcon sx={{ fontSize: 14 }} />
             </Box>
 
             {user ? (
