@@ -57,7 +57,7 @@ func (a *App) DashProjectCreate(w http.ResponseWriter, r *http.Request) {
 		Description: strings.TrimSpace(body.Description),
 		URL:         strings.TrimSpace(body.URL),
 		ImagePath:   imagePath,
-		Body:        body.Body,
+		Body:        sanitizeContent(body.Body),
 		Published:   body.Published,
 	})
 	if err != nil {
@@ -126,7 +126,7 @@ func (a *App) DashProjectUpdate(w http.ResponseWriter, r *http.Request) {
 	proj.Title = newTitle
 	proj.Description = strings.TrimSpace(body.Description)
 	proj.URL = strings.TrimSpace(body.URL)
-	proj.Body = body.Body
+	proj.Body = sanitizeContent(body.Body)
 	proj.Published = body.Published
 
 	if ip := strings.TrimSpace(body.ImagePath); ip != "" {

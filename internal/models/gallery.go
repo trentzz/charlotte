@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -230,27 +231,6 @@ func SetAlbumCoverIfNone(db *sql.DB, albumID, photoID int64) error {
 	return err
 }
 
-// GetOrCreateGeneralAlbum returns the user's "General" album, creating it if needed.
-func GetOrCreateGeneralAlbum(db *sql.DB, userID int64) (*Album, error) {
-	a, err := GetAlbumBySlug(db, userID, "general")
-	if err == nil {
-		return a, nil
-	}
-	id, err := CreateAlbum(db, &Album{
-		UserID: userID,
-		Title:  "General",
-		Slug:   "general",
-	})
-	if err != nil {
-		// Another request may have created it concurrently; try once more.
-		if a2, err2 := GetAlbumBySlug(db, userID, "general"); err2 == nil {
-			return a2, nil
-		}
-		return nil, err
-	}
-	return GetAlbumByID(db, id)
-}
-
 // getDefaultAlbumRow scans a single row into an Album using the standard select columns.
 func getDefaultAlbumRow(db *sql.DB, userID int64) (*Album, error) {
 	var a Album
@@ -473,6 +453,37 @@ func scanPhotos(rows *sql.Rows) ([]*Photo, error) {
 		photos = append(photos, p)
 	}
 	return photos, rows.Err()
+}
+
+// FindOtherAlbumForPhoto returns the ID of an album that contains the photo
+// but is not in the excludeAlbumIDs set. Returns 0 when no such album exists,
+// meaning the photo is exclusive to the excluded set and may be safely deleted.
+func FindOtherAlbumForPhoto(db *sql.DB, photoID int64, excludeAlbumIDs []int64) (int64, error) {
+	placeholders := make([]string, len(excludeAlbumIDs))
+	args := make([]any, 0, 1+len(excludeAlbumIDs))
+	args = append(args, photoID)
+	for i, id := range excludeAlbumIDs {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	q := fmt.Sprintf(
+		`SELECT album_id FROM album_photos WHERE photo_id = ? AND album_id NOT IN (%s) LIMIT 1`,
+		strings.Join(placeholders, ","),
+	)
+	var albumID int64
+	err := db.QueryRow(q, args...).Scan(&albumID)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	return albumID, err
+}
+
+// RehomePhoto updates a photo's primary album_id to the given album.
+// This is used before album deletion to prevent the ON DELETE CASCADE on
+// photos.album_id from destroying photos that are shared with other albums.
+func RehomePhoto(db *sql.DB, photoID, newAlbumID int64) error {
+	_, err := db.Exec(`UPDATE photos SET album_id = ? WHERE id = ?`, newAlbumID, photoID)
+	return err
 }
 
 // DeletePhoto removes a photo record and returns the deleted photo (for file cleanup).

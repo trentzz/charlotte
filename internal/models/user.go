@@ -101,25 +101,27 @@ func DefaultTheme() UserTheme {
 
 // User represents a registered account.
 type User struct {
-	ID              int64
-	Username        string
-	Email           string
-	PasswordHash    string
-	DisplayName     string
-	Bio             string
-	AvatarPath      string
-	Role            Role
-	Status          Status
-	FeatureBlog     bool
-	FeatureAbout    bool
-	FeatureGallery  bool
-	FeatureRecipes  bool
-	FeatureProjects bool
-	ShowOnHomepage  bool
-	Theme           UserTheme
-	Links           []UserLink
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID                int64
+	Username          string
+	Email             string
+	PasswordHash      string
+	DisplayName       string
+	Bio               string
+	AvatarPath        string
+	Role              Role
+	Status            Status
+	FeatureBlog       bool
+	FeatureAbout      bool
+	FeatureGallery    bool
+	FeatureRecipes    bool
+	FeatureProjects   bool
+	ShowOnHomepage    bool
+	EmailVerified     bool
+	EmailVerifyToken  string
+	Theme             UserTheme
+	Links             []UserLink
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 // DisplayOrUsername returns DisplayName if set, otherwise Username.
@@ -150,6 +152,8 @@ func scanUser(row interface {
 	var themeJSON string
 	var featureProjects int
 	var showOnHomepage int
+	var emailVerified int
+	var emailVerifyToken sql.NullString
 	var createdAt, updatedAt int64
 
 	err := row.Scan(
@@ -159,6 +163,7 @@ func scanUser(row interface {
 		&u.FeatureBlog, &u.FeatureAbout, &u.FeatureGallery, &u.FeatureRecipes,
 		&linksJSON, &createdAt, &updatedAt,
 		&featureProjects, &themeJSON, &showOnHomepage,
+		&emailVerified, &emailVerifyToken,
 	)
 	if err != nil {
 		return nil, err
@@ -169,6 +174,8 @@ func scanUser(row interface {
 	}
 	u.FeatureProjects = featureProjects == 1
 	u.ShowOnHomepage = showOnHomepage == 1
+	u.EmailVerified = emailVerified == 1
+	u.EmailVerifyToken = emailVerifyToken.String
 	theme := DefaultTheme()
 	if themeJSON != "" && themeJSON != "{}" {
 		_ = json.Unmarshal([]byte(themeJSON), &theme)
@@ -183,7 +190,8 @@ const userSelect = `SELECT id, username, email, password_hash,
 	display_name, bio, avatar_path, role, status,
 	feature_blog, feature_about, feature_gallery, feature_recipes,
 	links, created_at, updated_at,
-	feature_projects, theme_json, show_on_homepage FROM users`
+	feature_projects, theme_json, show_on_homepage,
+	email_verified, email_verify_token FROM users`
 
 // CreateUser inserts a new user and returns the assigned ID.
 func CreateUser(db *sql.DB, u *User) (int64, error) {
@@ -308,11 +316,22 @@ func UpdateUserFeatures(db *sql.DB, id int64, blog, about, gallery, recipes, pro
 	return err
 }
 
-// UpdateUserStatus changes a user's status.
+// UpdateUserStatus changes a user's status. Returns sql.ErrNoRows if no user
+// with the given ID exists.
 func UpdateUserStatus(db *sql.DB, id int64, status Status) error {
-	_, err := db.Exec(`UPDATE users SET status = ?, updated_at = unixepoch() WHERE id = ?`,
+	result, err := db.Exec(`UPDATE users SET status = ?, updated_at = unixepoch() WHERE id = ?`,
 		status, id)
-	return err
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // UpdateUserRole promotes or demotes a user.
@@ -340,6 +359,40 @@ func CountUsers(db *sql.DB) (int, error) {
 	var count int
 	err := db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count)
 	return count, err
+}
+
+// GetUserByVerifyToken returns the user whose email_verify_token matches token,
+// or sql.ErrNoRows if none is found.
+func GetUserByVerifyToken(db *sql.DB, token string) (*User, error) {
+	row := db.QueryRow(userSelect+` WHERE email_verify_token = ?`, token)
+	return scanUser(row)
+}
+
+// SetEmailVerifyToken stores a pending verification token for the user.
+func SetEmailVerifyToken(db *sql.DB, userID int64, token string) error {
+	_, err := db.Exec(
+		`UPDATE users SET email_verify_token = ?, email_verified = 0, updated_at = unixepoch() WHERE id = ?`,
+		token, userID,
+	)
+	return err
+}
+
+// ConfirmEmailVerified marks the user's email as verified and clears the token.
+func ConfirmEmailVerified(db *sql.DB, userID int64) error {
+	_, err := db.Exec(
+		`UPDATE users SET email_verified = 1, email_verify_token = NULL, updated_at = unixepoch() WHERE id = ?`,
+		userID,
+	)
+	return err
+}
+
+// UpdateUserEmail updates the email address for a user and resets verification.
+func UpdateUserEmail(db *sql.DB, userID int64, email string) error {
+	_, err := db.Exec(
+		`UPDATE users SET email = ?, email_verified = 0, email_verify_token = NULL, updated_at = unixepoch() WHERE id = ?`,
+		email, userID,
+	)
+	return err
 }
 
 // GetDiskUsageByUser returns the total size_bytes of photos per user ID.

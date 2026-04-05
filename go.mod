@@ -1,10 +1,12 @@
 module github.com/trentzz/charlotte
 
-go 1.22
+go 1.24.0
 
 require (
+	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/yuin/goldmark v1.7.17
 	golang.org/x/crypto v0.24.0
+	golang.org/x/image v0.29.0
 	modernc.org/sqlite v1.29.9
 )
 
@@ -15,7 +17,6 @@ require (
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	golang.org/x/net v0.26.0 // indirect

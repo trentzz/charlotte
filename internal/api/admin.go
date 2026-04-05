@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -33,6 +34,10 @@ func (a *App) AdminUserApprove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := models.UpdateUserStatus(a.DB, id, models.StatusActive); err != nil {
+		if err == sql.ErrNoRows {
+			a.respondError(w, http.StatusNotFound, "user not found")
+			return
+		}
 		a.internalError(w, r, err)
 		return
 	}
@@ -52,6 +57,10 @@ func (a *App) AdminUserSuspend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := models.UpdateUserStatus(a.DB, id, models.StatusSuspended); err != nil {
+		if err == sql.ErrNoRows {
+			a.respondError(w, http.StatusNotFound, "user not found")
+			return
+		}
 		a.internalError(w, r, err)
 		return
 	}

@@ -82,6 +82,44 @@ func GetPostByID(db *sql.DB, id int64) (*Post, error) {
 	return p, err
 }
 
+// loadTagsForPosts batch-loads tags for a slice of posts in a single query.
+func loadTagsForPosts(db *sql.DB, posts []*Post) error {
+	if len(posts) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(posts))
+	args := make([]any, len(posts))
+	for i, p := range posts {
+		placeholders[i] = "?"
+		args[i] = p.ID
+	}
+	q := `SELECT bpt.post_id, bt.name FROM blog_tags bt
+	      JOIN blog_post_tags bpt ON bpt.tag_id = bt.id
+	      WHERE bpt.post_id IN (` + strings.Join(placeholders, ",") + `) ORDER BY bt.name`
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	tagMap := make(map[int64][]string)
+	for rows.Next() {
+		var postID int64
+		var name string
+		if err := rows.Scan(&postID, &name); err != nil {
+			return err
+		}
+		tagMap[postID] = append(tagMap[postID], name)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, p := range posts {
+		p.Tags = tagMap[p.ID]
+	}
+	return nil
+}
+
 // ListPostsByUser returns posts for userID. Pass publishedOnly=true for the public view.
 func ListPostsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Post, error) {
 	q := postSelect + ` WHERE user_id = ?`
@@ -102,10 +140,16 @@ func ListPostsByUser(db *sql.DB, userID int64, publishedOnly bool) ([]*Post, err
 		if err != nil {
 			return nil, err
 		}
-		p.Tags, _ = GetPostTags(db, p.ID)
 		posts = append(posts, p)
 	}
-	return posts, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close() // close before making more DB calls
+	if err := loadTagsForPosts(db, posts); err != nil {
+		return nil, err
+	}
+	return posts, nil
 }
 
 // UpdatePost saves edits to an existing post.
@@ -207,5 +251,12 @@ func ListAllPosts(db *sql.DB) ([]*Post, error) {
 		}
 		posts = append(posts, p)
 	}
-	return posts, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close() // close before making more DB calls
+	if err := loadTagsForPosts(db, posts); err != nil {
+		return nil, err
+	}
+	return posts, nil
 }

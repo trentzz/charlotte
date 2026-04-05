@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Outlet, Link as RouterLink, useParams, useNavigate } from 'react-router-dom'
 import {
   AppBar, Toolbar, Typography, Box, Button,
-  IconButton, Menu, Divider, CircularProgress, TextField, Paper, Switch,
+  IconButton, Menu, Divider, CircularProgress, TextField, Paper, Switch, Popper,
 } from '@mui/material'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
@@ -14,16 +14,50 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { ThemeModeProvider, useThemeMode } from '../context/ThemeModeContext.jsx'
 import buildProfileTheme from '../theme/buildProfileTheme.js'
 
-// A nav button that navigates to the section on click and shows a dropdown on
-// hover. The dropdown is an absolutely-positioned child of the wrapper — no
-// MUI Portal — so mouse events never fire when moving between button and list.
+// A nav button that navigates to the section on click and shows a Popper-based
+// dropdown on hover. Uses relatedTarget checking and a small close timer to
+// prevent blinking when moving the cursor between the button and the list.
 function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
+  const buttonRef = useRef(null)
+  const popperRef = useRef(null)
+  const closeTimer = useRef(null)
   const [open, setOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
 
-  function close() {
-    setOpen(false)
-    setFilterText('')
+  function cancelClose() {
+    clearTimeout(closeTimer.current)
+  }
+
+  function scheduleClose() {
+    closeTimer.current = setTimeout(() => {
+      setOpen(false)
+      setFilterText('')
+    }, 80)
+  }
+
+  function handleButtonEnter() {
+    cancelClose()
+    setOpen(true)
+  }
+
+  function handleButtonLeave(e) {
+    if (popperRef.current && popperRef.current.contains(e.relatedTarget)) {
+      cancelClose()
+      return
+    }
+    scheduleClose()
+  }
+
+  function handlePopperEnter() {
+    cancelClose()
+  }
+
+  function handlePopperLeave(e) {
+    if (buttonRef.current && buttonRef.current.contains(e.relatedTarget)) {
+      cancelClose()
+      return
+    }
+    scheduleClose()
   }
 
   const labelStyle = {
@@ -39,31 +73,31 @@ function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
     : items
 
   return (
-    <Box
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={close}
-      sx={{ position: 'relative', display: 'inline-flex' }}
-    >
+    <>
       <Button
+        ref={buttonRef}
         component={RouterLink}
         to={allHref}
         endIcon={<KeyboardArrowDownIcon />}
+        onMouseEnter={handleButtonEnter}
+        onMouseLeave={handleButtonLeave}
         sx={{ color: 'inherit', ...labelStyle }}
       >
         {label}
       </Button>
 
-      {open && items.length > 0 && (
+      <Popper
+        open={open && items.length > 0}
+        anchorEl={buttonRef.current}
+        placement="bottom-start"
+        sx={{ zIndex: 1300 }}
+      >
         <Paper
+          ref={popperRef}
           elevation={4}
-          sx={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            zIndex: 1300,
-            minWidth: '100%',
-            py: 0.5,
-          }}
+          onMouseEnter={handlePopperEnter}
+          onMouseLeave={handlePopperLeave}
+          sx={{ minWidth: 160, py: 0.5, mt: 0.5 }}
         >
           {items.length > 3 && (
             <Box sx={{ px: 1.5, pt: 0.5, pb: 0.5 }}>
@@ -83,7 +117,7 @@ function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
               key={item.href}
               component={RouterLink}
               to={item.href}
-              onClick={close}
+              onClick={() => { setOpen(false); setFilterText('') }}
               sx={{
                 display: 'block',
                 px: 2,
@@ -99,8 +133,8 @@ function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
             </Box>
           ))}
         </Paper>
-      )}
-    </Box>
+      </Popper>
+    </>
   )
 }
 

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import {
   Box, Typography, TextField, Button, Alert, CircularProgress,
-  Avatar, Stack, Divider, FormControlLabel, Switch,
+  Avatar, Stack, Divider, FormControlLabel, Switch, Chip, Snackbar,
 } from '@mui/material'
 import CheckIcon from '@mui/icons-material/Check'
+import VerifiedIcon from '@mui/icons-material/Verified'
 import client from '../../api/client.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useNavData } from '../../context/NavDataContext.jsx'
@@ -11,7 +12,7 @@ import { useNavData } from '../../context/NavDataContext.jsx'
 export default function Profile() {
   const { user, refresh } = useAuth()
   const navDataCtx = useNavData()
-  const [form, setForm] = useState({ display_name: '', bio: '', location: '', website: '', show_on_homepage: true })
+  const [form, setForm] = useState({ display_name: '', bio: '', email: '', location: '', website: '', show_on_homepage: true })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -19,19 +20,36 @@ export default function Profile() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [avatarSrc, setAvatarSrc] = useState(null)
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [sendingVerify, setSendingVerify] = useState(false)
+  const [snackbar, setSnackbar] = useState(null)
+
+  useEffect(() => {
+    // Show success message if redirected back from the email verification link.
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('verified') === '1') {
+      setSnackbar('Email verified successfully')
+      // Remove the query param without a page reload.
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   useEffect(() => {
     client.get('/dashboard/profile')
       .then((res) => {
-        const p = res.data.profile || res.data
+        const p = res.data.data || res.data.profile || res.data
         setForm({
           display_name: p.display_name || '',
           bio: p.bio || '',
+          email: p.email || '',
           location: p.location || '',
           website: p.website || '',
           show_on_homepage: p.show_on_homepage !== false,
         })
-        if (p.avatar_path) {
+        setEmailVerified(p.email_verified === true)
+        if (p.avatar_url) {
+          setAvatarSrc(p.avatar_url)
+        } else if (p.avatar_path) {
           setAvatarSrc(p.avatar_path.startsWith('/') ? p.avatar_path : `/${p.avatar_path}`)
         }
       })
@@ -58,6 +76,24 @@ export default function Profile() {
       setError(err.response?.data?.error || 'Failed to save profile.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSendVerification() {
+    setSendingVerify(true)
+    setError(null)
+    try {
+      const res = await client.post('/dashboard/send-verification', {})
+      const d = res.data?.data || res.data
+      if (d?.ok) {
+        setSnackbar('Verification email sent')
+      } else {
+        setError(d?.error || 'Failed to send verification email.')
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to send verification email.')
+    } finally {
+      setSendingVerify(false)
     }
   }
 
@@ -138,6 +174,39 @@ export default function Profile() {
           }
           label="Show my profile on the Charlotte homepage"
         />
+
+        {/* Email field with verification status */}
+        <Stack direction="row" spacing={1} alignItems="flex-start">
+          <TextField
+            label="Email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            type="email"
+            sx={{ flex: 1 }}
+          />
+          {form.email && emailVerified && (
+            <Chip
+              icon={<VerifiedIcon />}
+              label="Verified"
+              color="success"
+              variant="outlined"
+              sx={{ mt: 1 }}
+            />
+          )}
+          {form.email && !emailVerified && (
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleSendVerification}
+              disabled={sendingVerify}
+              sx={{ mt: 1, whiteSpace: 'nowrap' }}
+            >
+              {sendingVerify ? 'Sending…' : 'Verify email'}
+            </Button>
+          )}
+        </Stack>
+
         <TextField
           label="Location"
           name="location"
@@ -161,6 +230,13 @@ export default function Profile() {
           {saving ? 'Saving…' : saved ? 'Changes saved' : 'Save profile'}
         </Button>
       </Box>
+
+      <Snackbar
+        open={snackbar !== null}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(null)}
+        message={snackbar}
+      />
     </Box>
   )
 }

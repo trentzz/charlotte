@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/trentzz/charlotte/internal/models"
@@ -49,6 +50,7 @@ func NewSession(db *sql.DB, w http.ResponseWriter, userID int64) (*models.Sessio
 
 // SetSessionCookie writes the session cookie to the response.
 func SetSessionCookie(w http.ResponseWriter, token string, expires time.Time) {
+	secure := os.Getenv("CHARLOTTE_SECURE_COOKIES") == "true"
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    token,
@@ -56,7 +58,7 @@ func SetSessionCookie(w http.ResponseWriter, token string, expires time.Time) {
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		// Secure is handled by the reverse proxy; omit here so localhost works.
+		Secure:   secure,
 	})
 }
 

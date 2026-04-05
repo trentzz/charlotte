@@ -3,7 +3,7 @@ import { Outlet, Link as RouterLink, useLocation, useNavigate } from 'react-rout
 import {
   AppBar, Toolbar, Typography, Box, Button, MenuItem,
   IconButton, Menu, Divider, CircularProgress, useMediaQuery,
-  Select, FormControl, TextField,
+  Select, FormControl, TextField, Switch,
 } from '@mui/material'
 import { ThemeProvider, CssBaseline, useTheme } from '@mui/material'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
@@ -218,9 +218,17 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
               </Box>
 
               {/* Dark/light toggle */}
-              <IconButton onClick={toggleMode} color="inherit" size="small" sx={{ ml: 1 }}>
-                {mode === 'dark' ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
-              </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', mx: 1.5, opacity: 0.75 }}>
+                <LightModeIcon sx={{ fontSize: 14 }} />
+                <Switch
+                  checked={mode === 'dark'}
+                  onChange={toggleMode}
+                  size="small"
+                  color="default"
+                  sx={{ mx: 0.5 }}
+                />
+                <DarkModeIcon sx={{ fontSize: 14 }} />
+              </Box>
 
               {/* Account button with icon + text */}
               <Button

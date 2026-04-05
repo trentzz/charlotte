@@ -12,6 +12,10 @@ import (
 	"github.com/trentzz/charlotte/internal/models"
 )
 
+// emailRE validates a non-blank email address.
+// Requires at least one non-whitespace char before @, a domain, and a TLD of two or more chars.
+var emailRE = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]{2,}$`)
+
 var usernameRE = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,32}$`)
 
 // Register handles POST /api/v1/auth/register.
@@ -40,8 +44,8 @@ func (a *App) Register(w http.ResponseWriter, r *http.Request) {
 	case !usernameRE.MatchString(username):
 		a.respondError(w, http.StatusUnprocessableEntity, "username must be 3-32 characters: letters, digits, hyphens, and underscores only")
 		return
-	case len(email) < 3 || !strings.Contains(email, "@"):
-		a.respondError(w, http.StatusUnprocessableEntity, "please enter a valid email address")
+	case email != "" && !emailRE.MatchString(email):
+		a.respondError(w, http.StatusUnprocessableEntity, "invalid email address")
 		return
 	case len(password) < 8:
 		a.respondError(w, http.StatusUnprocessableEntity, "password must be at least 8 characters")
@@ -155,12 +159,15 @@ func (a *App) Login(w http.ResponseWriter, r *http.Request) {
 		a.internalError(w, r, err)
 		return
 	}
+	// Bind a fresh CSRF token to the new session so previous session tokens cannot be reused.
+	middleware.SetCSRFCookie(w)
 	a.respondJSON(w, http.StatusOK, toUserJSONWithEmail(user))
 }
 
 // Logout handles POST /api/v1/auth/logout.
 func (a *App) Logout(w http.ResponseWriter, r *http.Request) {
 	auth.ClearSession(a.DB, w, r)
+	middleware.ClearCSRFCookie(w)
 	a.respondJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
 }
 

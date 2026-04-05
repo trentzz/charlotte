@@ -238,10 +238,15 @@ var migrations = []string{
 	)`,
 
 	// 27: site-level theme stored as JSON in site_settings
+	// unused, site theme stored as key=site_theme_json in key/value rows
 	`ALTER TABLE site_settings ADD COLUMN site_theme_json TEXT NOT NULL DEFAULT ''`,
 
 	// 28: per-user opt-in to appear on the landing page
 	`ALTER TABLE users ADD COLUMN show_on_homepage INTEGER NOT NULL DEFAULT 1`,
+
+	// 29: email verification columns
+	`ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE users ADD COLUMN email_verify_token TEXT`,
 }
 
 // migrate runs any migrations that have not yet been applied, in order.

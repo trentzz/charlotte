@@ -100,9 +100,22 @@ func renderContent(s string) string {
 
 // ── Slug helpers ──────────────────────────────────────────────────────────────
 
+// allowedSlugTables is the set of tables that slugUnique may query.
+var allowedSlugTables = map[string]string{
+	"blog_posts":    "blog_posts",
+	"recipes":       "recipes",
+	"projects":      "projects",
+	"gallery_albums": "gallery_albums",
+}
+
 // slugUnique checks whether slug is already taken by another row in table.
+// table must be one of the known allowed values; any other value returns an error.
 func slugUnique(db *sql.DB, table string, userID, exceptID int64, slug string) (bool, error) {
-	q := "SELECT COUNT(*) FROM " + table + " WHERE user_id = ? AND slug = ?"
+	validated, ok := allowedSlugTables[table]
+	if !ok {
+		return false, fmt.Errorf("slugUnique: unknown table %q", table)
+	}
+	q := "SELECT COUNT(*) FROM " + validated + " WHERE user_id = ? AND slug = ?"
 	args := []any{userID, slug}
 	if exceptID > 0 {
 		q += " AND id != ?"
@@ -180,10 +193,11 @@ type userJSON struct {
 	CreatedAt      string            `json:"created_at"`
 }
 
-// userJSONWithEmail extends userJSON with an email field for private/admin endpoints.
+// userJSONWithEmail extends userJSON with email fields for private/admin endpoints.
 type userJSONWithEmail struct {
 	userJSON
-	Email string `json:"email"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
 }
 
 type featuresJSON struct {
@@ -227,11 +241,12 @@ func toUserJSON(u *models.User) userJSON {
 	}
 }
 
-// toUserJSONWithEmail converts a User to the private shape (includes email).
+// toUserJSONWithEmail converts a User to the private shape (includes email and verification status).
 func toUserJSONWithEmail(u *models.User) userJSONWithEmail {
 	return userJSONWithEmail{
-		userJSON: toUserJSON(u),
-		Email:    u.Email,
+		userJSON:      toUserJSON(u),
+		Email:         u.Email,
+		EmailVerified: u.EmailVerified,
 	}
 }
 

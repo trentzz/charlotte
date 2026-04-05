@@ -25,7 +25,7 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 
 ### Gallery
 
-- Upload photos (JPEG, PNG, WebP, GIF) up to 10 MB each; up to 20 files per batch.
+- Upload photos (JPEG, PNG, WebP, GIF) up to 10 MB each; up to 20 files per batch. Width and height are recorded on upload for all formats including WebP (RC-10).
 - Photos belong to albums. A default album named "Uploads" is created automatically for unassigned photos.
 - **Default album**: one album per user is marked as the default upload destination (star badge in the dashboard). When auto-created, this album is named "Uploads". Photos uploaded via blog image upload, or any upload that does not specify an album, go into this album. Set any album as default using the star button on the album card or inside the album view. The first album created for a user is automatically marked as the default. Migration 23.
 - Per-album visibility toggle (public / private). Toggle from the album card or the album view header (eye icon). Unpublished albums are hidden from the public gallery.
@@ -36,6 +36,7 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - **Lightbox**: click any photo to view full-size with prev/next navigation and keyboard support (arrow keys, Escape).
 - **Sub-albums**: albums can be nested one level deep. Create a sub-album from inside an album's dashboard view using the "Sub-album" button. Sub-albums do not appear on the gallery home page.
 - **Many-to-many photo membership**: a photo can belong to multiple albums simultaneously. In the dashboard album view, use "Add existing" to pick any of your photos and add them to the current album without re-uploading. Photos are stored once in `photos`; membership tracked in the `album_photos` join table (migrations 20–22).
+- **Safe album deletion** (RC-01): when an album is deleted, any photo that still belongs to another album is re-homed rather than destroyed. Only photos exclusively in the deleted album have their files and DB rows removed. The join-table entries for the deleted album are always cleared.
 - **Remove from album**: each photo in the dashboard album view has a "Remove from album" action that removes it from the album without deleting the file.
 - **Dashboard album view tabs**: when an album has sub-albums, pill buttons appear at the top — "This album" (current album only), "All (inc. sub-albums)" (union of all photos), and one button per sub-album (navigates to that album).
 - **Public album navigation**: when a public album has sub-albums, pill buttons appear below the album header — "All" (default, shows all photos across this album and sub-albums), the parent album name, and one button per sub-album.
@@ -89,6 +90,8 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - Per-user feature toggles: Blog, About, Gallery, Recipes, Projects.
 - **Show on homepage toggle**: users can opt in or out of appearing on the Charlotte landing page user grid. The toggle is in the Profile form. Default is on (show). Stored in `show_on_homepage` column on the `users` table (migration 28). The public `GET /api/v1/users` endpoint only returns users with `show_on_homepage = 1`.
 - **Live avatar update**: after a successful avatar upload, the dashboard nav bar refreshes its profile data immediately without requiring a page reload.
+- **Email optional with proper validation** (RC-11): email is optional at registration and on the profile page. A blank email is accepted. If a non-blank email is provided, it must match `^[^@\s]+@[^@\s]+\.[^@\s]{2,}$` (two-or-more character TLD required, no whitespace). The same validation applies on the profile update endpoint.
+- **Email verification** (RC-11): the Profile page shows the email address with a "Verify email" button when the address is not yet verified, or a green "Verified" chip when it is. Clicking "Verify email" calls `POST /api/v1/dashboard/send-verification`, which emails a link to `GET /api/v1/verify-email?token=TOKEN`. The link sets `email_verified = 1` and redirects to `/dashboard/profile?verified=1`, where a snackbar confirms success. If SMTP is not configured (`CHARLOTTE_SMTP_HOST` unset), the endpoint returns a clear "SMTP is not configured on this server" error. Changing the email address resets verification. DB: `email_verified INTEGER NOT NULL DEFAULT 0` and `email_verify_token TEXT` on the `users` table (migrations 29–30). SMTP configured via env vars: `CHARLOTTE_SMTP_HOST`, `CHARLOTTE_SMTP_PORT` (default 587), `CHARLOTTE_SMTP_USER`, `CHARLOTTE_SMTP_PASS`, `CHARLOTTE_SMTP_FROM`.
 
 ---
 
@@ -171,6 +174,7 @@ Default site theme: deep burgundy accent (H=340, S=50, L=35), warm ivory backgro
 - bcrypt passwords (cost 12).
 - Session tokens (32-byte random, HttpOnly secure cookie, 30-day TTL).
 - CSRF tokens on all POST forms (GET routes for forms must also run CSRF middleware).
+- **CSRF token lifecycle** (RC-05): the CSRF cookie is regenerated on every login, binding a fresh token to each new session. On logout, the CSRF cookie is cleared. This prevents token reuse across sessions and across different users on the same browser.
 - Rate limiting on login and register endpoints (in-memory token bucket per IP).
 - File upload validation: MIME sniffing + allowlist (jpeg/png/webp/gif) + 10 MB cap.
 - Path traversal prevention on file serving.

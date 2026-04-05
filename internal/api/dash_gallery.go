@@ -206,11 +206,38 @@ func (a *App) DashAlbumDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Delete all associated photo files from disk, including photos in sub-albums.
+
+	// Collect every album_id that will be deleted (the album and its sub-albums).
+	deletedAlbumIDs := []int64{album.ID}
+	for _, sub := range album.SubAlbums {
+		deletedAlbumIDs = append(deletedAlbumIDs, sub.ID)
+	}
+
+	// Gather all photos from this album and its sub-albums.
 	photos, _ := models.ListAllPhotosByAlbum(a.DB, album.ID)
+
+	// For each photo, check whether it belongs to any album outside the set
+	// being deleted. If it does, re-home the photo to one of those albums so
+	// the ON DELETE CASCADE on photos.album_id does not destroy it. Otherwise,
+	// delete the file from disk (the DB row is removed by the cascade below).
 	for _, p := range photos {
+		otherAlbumID, err := models.FindOtherAlbumForPhoto(a.DB, p.ID, deletedAlbumIDs)
+		if err != nil {
+			a.internalError(w, r, err)
+			return
+		}
+		if otherAlbumID != 0 {
+			// Photo is shared — move its primary album_id so the cascade spares it.
+			if err := models.RehomePhoto(a.DB, p.ID, otherAlbumID); err != nil {
+				a.internalError(w, r, err)
+				return
+			}
+			continue
+		}
+		// Photo is exclusive to this album set — delete the file from disk.
 		_ = storage.DeleteUpload(a.DataDir, p.UserID, p.Filename)
 	}
+
 	if err := models.DeleteAlbum(a.DB, album.ID); err != nil {
 		a.internalError(w, r, err)
 		return

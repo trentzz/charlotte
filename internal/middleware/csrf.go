@@ -61,6 +61,32 @@ func CSRFToken(r *http.Request) string {
 	return t
 }
 
+// SetCSRFCookie generates a new CSRF token and writes it as a cookie.
+// Call this after login to bind a fresh token to the new session.
+func SetCSRFCookie(w http.ResponseWriter) string {
+	token := generateCSRFToken()
+	secure := os.Getenv("CHARLOTTE_SECURE_COOKIES") == "true"
+	http.SetCookie(w, &http.Cookie{
+		Name:     csrfCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: false,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+	})
+	return token
+}
+
+// ClearCSRFCookie expires the CSRF cookie. Call this on logout.
+func ClearCSRFCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   csrfCookieName,
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+}
+
 func csrfTokenFromRequest(r *http.Request) string {
 	c, err := r.Cookie(csrfCookieName)
 	if err != nil {

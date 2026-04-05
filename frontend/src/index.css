@@ -1,0 +1,4 @@
+/* Remove default arrow glyphs from react-grid-layout resize handles */
+.react-resizable-handle::after {
+  display: none;
+}

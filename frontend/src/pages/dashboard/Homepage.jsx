@@ -356,11 +356,15 @@ function Homepage() {
   const canvasRef = useRef(null)
   const saveTimerRef = useRef(null)
 
-  // Measure canvas width.
+  // Measure canvas width. Read immediately on mount, then track changes.
   useEffect(() => {
     if (!canvasRef.current) return
+    // Set the initial width synchronously so the first render uses a real value.
+    const initial = canvasRef.current.getBoundingClientRect().width
+    if (initial > 0) setCanvasWidth(initial)
     const obs = new ResizeObserver(([entry]) => {
-      setCanvasWidth(entry.contentRect.width || 800)
+      const w = entry.contentRect.width
+      if (w > 0) setCanvasWidth(w)
     })
     obs.observe(canvasRef.current)
     return () => obs.disconnect()
