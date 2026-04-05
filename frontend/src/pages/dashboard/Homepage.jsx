@@ -69,6 +69,13 @@ const PALETTE = [
 // Content-linked widget types that need a picker.
 const CONTENT_TYPES = new Set(['blog_post', 'photo', 'album', 'recipe', 'project'])
 
+// Default widget layout shown when a user has not configured their homepage yet.
+const DEFAULT_WIDGETS = [
+  { id: 'default_profile', type: 'profile', layout: { x: 0, y: 0, w: 4, h: 5 } },
+  { id: 'default_intro',   type: 'text',    layout: { x: 4, y: 0, w: 8, h: 5 },
+    content: '<h2>Welcome</h2><p>This is your homepage. Add a short introduction, link to your work, or tell people what you\'re up to.</p>' },
+]
+
 // Simple counter for unique widget IDs within a session.
 let widgetCounter = 1
 function nextID() {
@@ -145,9 +152,10 @@ function WidgetCard({ widget, onRemove, onEdit, available }) {
         flexDirection: 'column',
         borderRadius: 1.5,
         overflow: 'hidden',
-        bgcolor: 'transparent',
+        bgcolor: 'background.paper',
         boxShadow: 'none',
-        border: 'none',
+        border: '1px solid',
+        borderColor: 'divider',
         position: 'relative',
         cursor: 'grab',
       }}
@@ -419,7 +427,7 @@ function Homepage() {
     client.get('/dashboard/homepage')
       .then((res) => {
         const { layout, ...rest } = res.data
-        setWidgets(layout?.widgets || [])
+        setWidgets(layout?.widgets?.length > 0 ? layout.widgets : DEFAULT_WIDGETS)
         setAvailable({ ...rest, blog_posts: rest.posts || [] })
       })
       .catch((err) => {

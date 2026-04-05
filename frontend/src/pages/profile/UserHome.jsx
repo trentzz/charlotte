@@ -36,44 +36,97 @@ function PostCard({ post, username }) {
 }
 
 function DefaultLayout({ profile, navData, username }) {
-  const recentPosts = navData?.recent_posts || []
+  const recentPosts = (navData?.recent_posts || []).slice(0, 3)
+  const recentPhotos = (navData?.recent_photos || []).slice(0, 3)
   const avatarSrc = profile.avatar_url || undefined
 
   return (
-    <Container maxWidth="md" sx={{ py: 6 }}>
-      {/* Profile header */}
-      <Box sx={{ textAlign: 'center', mb: 6 }}>
+    <Container maxWidth="md" sx={{ py: 8 }}>
+      {/* Hero */}
+      <Box sx={{ textAlign: 'center', mb: 8 }}>
         <Avatar
           src={avatarSrc}
-          sx={{ width: 96, height: 96, mx: 'auto', mb: 2, fontSize: 36 }}
+          sx={{ width: 108, height: 108, mx: 'auto', mb: 3, fontSize: 40 }}
         >
           {(profile.display_name || profile.username)[0]?.toUpperCase()}
         </Avatar>
-        <Typography variant="h3" fontWeight={700} gutterBottom>
+        <Typography variant="h2" fontWeight={700} gutterBottom>
           {profile.display_name || profile.username}
         </Typography>
         {profile.bio && (
-          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480, mx: 'auto' }}>
+          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 520, mx: 'auto', mt: 1, lineHeight: 1.7 }}>
             {profile.bio}
           </Typography>
         )}
+        {profile.links?.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 3, flexWrap: 'wrap' }}>
+            {profile.links.map((link) => (
+              <Typography
+                key={link.url}
+                component="a"
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="body2"
+                sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+              >
+                {link.label || link.url}
+              </Typography>
+            ))}
+          </Box>
+        )}
       </Box>
+
+      {/* Recent photos strip */}
+      {recentPhotos.length > 0 && (
+        <Box sx={{ mb: 8 }}>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            {recentPhotos.map((photo) => (
+              <Box
+                key={photo.id}
+                component={RouterLink}
+                to={`/u/${username}/gallery`}
+                sx={{ flex: 1, aspectRatio: '1', overflow: 'hidden', borderRadius: 2, display: 'block' }}
+              >
+                <Box
+                  component="img"
+                  src={photo.url}
+                  alt={photo.caption || ''}
+                  sx={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s', '&:hover': { transform: 'scale(1.04)' } }}
+                />
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
 
       {/* Recent blog posts */}
       {recentPosts.length > 0 && (
         <>
-          <Divider sx={{ mb: 4 }} />
-          <Typography variant="h5" fontWeight={600} gutterBottom>
-            Recent posts
+          <Divider sx={{ mb: 5 }} />
+          <Typography variant="h4" fontWeight={700} sx={{ mb: 3 }}>
+            Recent writing
           </Typography>
-          <Grid container spacing={3} sx={{ mb: 4 }}>
-            {recentPosts.map((post) => (
-              <Grid item xs={12} sm={6} key={post.slug || post.id}>
-                <PostCard post={post} username={username} />
-              </Grid>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {recentPosts.map((post, i) => (
+              <Box key={post.slug || post.id}>
+                {i > 0 && <Divider />}
+                <Box
+                  component={RouterLink}
+                  to={`/u/${username}/blog/${post.slug}`}
+                  sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', py: 2.5, textDecoration: 'none', color: 'inherit', '&:hover h6': { color: 'primary.main' } }}
+                >
+                  <Typography variant="h6" fontWeight={600} sx={{ transition: 'color 0.15s' }}>
+                    {post.title}
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0, ml: 2 }}>
+                    {new Date(post.created_at).toLocaleDateString('en-AU', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </Typography>
+                </Box>
+              </Box>
             ))}
-          </Grid>
-          <Box sx={{ textAlign: 'center' }}>
+          </Box>
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
             <RouterLink to={`/u/${username}/blog`} style={{ fontSize: 14 }}>
               See all posts →
             </RouterLink>
@@ -101,15 +154,15 @@ const WIDGET_COLOURS = {
 function ProfileWidget({ widget, profile }) {
   const avatarSrc = profile?.avatar_url || undefined
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 1, p: 2, textAlign: 'center' }}>
-      <Avatar src={avatarSrc} sx={{ width: 64, height: 64, fontSize: 28 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 1.5, p: 2.5, textAlign: 'center' }}>
+      <Avatar src={avatarSrc} sx={{ width: 72, height: 72, fontSize: 30 }}>
         {(profile?.display_name || profile?.username || '?')[0]?.toUpperCase()}
       </Avatar>
-      <Typography variant="subtitle1" fontWeight={700} lineHeight={1.2}>
+      <Typography variant="h5" fontWeight={700} lineHeight={1.2}>
         {profile?.display_name || profile?.username}
       </Typography>
       {profile?.bio && (
-        <Typography variant="caption" color="text.secondary" sx={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
           {profile.bio}
         </Typography>
       )}
