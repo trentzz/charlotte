@@ -16,21 +16,21 @@ import buildProfileTheme from '../theme/buildProfileTheme.js'
 
 // A nav button that navigates to the section and opens a dropdown on hover.
 function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
+  const buttonRef = useRef(null)
   const closeTimer = useRef(null)
-  const [anchorEl, setAnchorEl] = useState(null)
+  const [open, setOpen] = useState(false)
   const [filterText, setFilterText] = useState('')
-  const open = Boolean(anchorEl)
 
-  const handleMouseEnter = (e) => {
+  const handleOpen = () => {
     clearTimeout(closeTimer.current)
-    setAnchorEl(e.currentTarget)
+    setOpen(true)
   }
-  const handleMouseLeave = () => {
-    closeTimer.current = setTimeout(() => setAnchorEl(null), 120)
+  const handleStartClose = () => {
+    closeTimer.current = setTimeout(() => setOpen(false), 200)
   }
-  const handleMenuMouseEnter = () => clearTimeout(closeTimer.current)
   const handleClose = () => {
-    setAnchorEl(null)
+    clearTimeout(closeTimer.current)
+    setOpen(false)
     setFilterText('')
   }
 
@@ -49,27 +49,30 @@ function NavDropdown({ label, items, allHref, navFontSize, fontDisplay }) {
   return (
     <>
       <Button
+        ref={buttonRef}
         component={RouterLink}
         to={allHref}
         endIcon={<KeyboardArrowDownIcon />}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={handleOpen}
+        onMouseLeave={handleStartClose}
         sx={{ color: 'inherit', ...labelStyle }}
       >
         {label}
       </Button>
       <Menu
-        anchorEl={anchorEl}
+        anchorEl={buttonRef.current}
         open={open}
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        PaperProps={{ sx: { minWidth: anchorEl?.offsetWidth ?? 120 } }}
+        PaperProps={{ sx: { minWidth: buttonRef.current?.offsetWidth ?? 120 } }}
         MenuListProps={{
-          onMouseEnter: handleMenuMouseEnter,
-          onMouseLeave: handleMouseLeave,
+          onMouseEnter: handleOpen,
+          onMouseLeave: handleStartClose,
         }}
         disableAutoFocusItem
+        disableScrollLock
+        TransitionProps={{ timeout: 0 }}
       >
         {items.length > 3 && (
           <Box sx={{ px: 1.5, pt: 1, pb: 0.5 }}>
