@@ -54,23 +54,13 @@ function SortableSectionCard({ sectionKey, label, customLabel, onLabelChange, pi
   }
 
   return (
-    <Paper
-      ref={setNodeRef}
-      style={style}
-      elevation={0}
-      sx={{
-        px: 2, py: 1.5,
-        bgcolor: 'grey.900',
-        color: 'common.white',
-        borderRadius: 1.5,
-      }}
-    >
+    <Paper ref={setNodeRef} style={style} variant="outlined" sx={{ px: 2, py: 1.5 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         {/* Drag handle */}
         <Box
           {...attributes}
           {...listeners}
-          sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'grey.500', mr: 0.5, touchAction: 'none' }}
+          sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'text.disabled', mr: 0.5, touchAction: 'none' }}
         >
           <DragIndicatorIcon sx={{ fontSize: 20 }} />
         </Box>
@@ -87,11 +77,8 @@ function SortableSectionCard({ sectionKey, label, customLabel, onLabelChange, pi
               sx: {
                 fontWeight: 600,
                 fontSize: '0.9375rem',
-                color: 'common.white',
-                '&::placeholder': { color: 'grey.400', opacity: 1 },
-                '&:before': { borderBottomColor: 'grey.600' },
-                '&:after': { borderBottomColor: 'common.white' },
-                '&:hover:not(.Mui-disabled):before': { borderBottomColor: 'grey.400' },
+                color: 'text.primary',
+                '& input::placeholder': { color: 'text.primary', opacity: 0.65, fontWeight: 600 },
               },
             },
           }}
@@ -101,22 +88,12 @@ function SortableSectionCard({ sectionKey, label, customLabel, onLabelChange, pi
         {/* Pinned items chip */}
         {hasDropdown && (
           <Chip
-            label={
-              pinnedSlugs.length > 0
-                ? `${pinnedSlugs.length} pinned`
-                : 'Using recent'
-            }
+            label={pinnedSlugs.length > 0 ? `${pinnedSlugs.length} pinned` : 'Using recent'}
             size="small"
             variant={pinnedSlugs.length > 0 ? 'filled' : 'outlined'}
             color={pinnedSlugs.length > 0 ? 'primary' : 'default'}
             onClick={onPickerOpen}
-            sx={{
-              cursor: 'pointer',
-              ...(pinnedSlugs.length === 0 && {
-                borderColor: 'grey.600',
-                color: 'grey.400',
-              }),
-            }}
+            sx={{ cursor: 'pointer' }}
           />
         )}
       </Box>
@@ -141,26 +118,16 @@ function SortablePageCard({ page }) {
   }
 
   return (
-    <Paper
-      ref={setNodeRef}
-      style={style}
-      elevation={0}
-      sx={{
-        px: 2, py: 1.5,
-        bgcolor: 'grey.900',
-        color: 'common.white',
-        borderRadius: 1.5,
-      }}
-    >
+    <Paper ref={setNodeRef} style={style} variant="outlined" sx={{ px: 2, py: 1.5 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Box
           {...attributes}
           {...listeners}
-          sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'grey.500', mr: 0.5, touchAction: 'none' }}
+          sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'text.disabled', mr: 0.5, touchAction: 'none' }}
         >
           <DragIndicatorIcon sx={{ fontSize: 20 }} />
         </Box>
-        <Typography variant="body1" fontWeight={600} sx={{ flexGrow: 1, color: 'common.white' }}>
+        <Typography variant="body1" fontWeight={500} sx={{ flexGrow: 1 }}>
           {page.title}
         </Typography>
         <Chip
@@ -168,7 +135,6 @@ function SortablePageCard({ page }) {
           size="small"
           color={page.published ? 'success' : 'default'}
           variant="outlined"
-          sx={!page.published ? { borderColor: 'grey.600', color: 'grey.400' } : {}}
         />
       </Box>
     </Paper>
