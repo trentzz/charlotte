@@ -354,9 +354,16 @@ export default function AlbumView() {
   async function handleRotate(photoId, degrees) {
     try {
       const res = await client.patch(`/dashboard/gallery/photos/${photoId}/rotate`, { degrees })
-      setPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, version: res.version } : p))
-      setAllPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, version: res.version } : p))
-      setSubPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, version: res.version } : p))
+      const bump = (p) => {
+        if (p.id !== photoId) return p
+        // Use the server version when available; fall back to a local increment so
+        // the cache-bust param always changes even if the DB write failed.
+        const version = res.version ?? (p.version ?? 0) + 1
+        return { ...p, version }
+      }
+      setPhotos((prev) => prev.map(bump))
+      setAllPhotos((prev) => prev.map(bump))
+      setSubPhotos((prev) => prev.map(bump))
     } catch {
       setError('Failed to rotate photo.')
     }

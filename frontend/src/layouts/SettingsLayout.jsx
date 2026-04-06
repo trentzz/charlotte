@@ -474,7 +474,7 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
                 minWidth: 0,
                 pt: 4,
                 pl: isMobile ? 0 : 4,
-                maxWidth: 'none',
+                maxWidth: 900,
               }}
             >
               <Outlet />

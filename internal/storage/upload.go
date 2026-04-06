@@ -187,36 +187,49 @@ func CompressPhoto(dataDir string, userID int64, originalFilename string) (strin
 	return cf, nil
 }
 
-// RotatePhoto rotates both the original and compressed files by the given degrees (90 or -90).
+// RotatePhoto rotates the original file and regenerates the compressed version from it.
 // Positive degrees = clockwise, negative = counter-clockwise.
+// AutoOrientation is applied before rotation so any EXIF orientation is baked into
+// pixels first — this ensures each click always moves by exactly the requested angle.
 func RotatePhoto(dataDir string, userID int64, originalFilename, compressedFilename string, degrees int) error {
 	dir := filepath.Join(dataDir, "uploads", strconv.FormatInt(userID, 10))
-	rotate := func(path string) error {
-		img, err := imaging.Open(path, imaging.AutoOrientation(true))
-		if err != nil {
-			return err
-		}
-		switch degrees {
-		case 90:
-			img = imaging.Rotate270(img) // Rotate270 = 90° CW
-		case -90:
-			img = imaging.Rotate90(img) // Rotate90 = 90° CCW
-		case 180:
-			img = imaging.Rotate180(img)
-		default:
-			return fmt.Errorf("unsupported rotation: %d", degrees)
-		}
-		return imaging.Save(img, path, imaging.JPEGQuality(CompressQuality))
+	origPath := filepath.Join(dir, originalFilename)
+
+	// Open with AutoOrientation so EXIF orientation is baked into pixels before we rotate.
+	img, err := imaging.Open(origPath, imaging.AutoOrientation(true))
+	if err != nil {
+		return fmt.Errorf("open original: %w", err)
 	}
 
-	if err := rotate(filepath.Join(dir, originalFilename)); err != nil {
-		return fmt.Errorf("rotate original: %w", err)
+	switch degrees {
+	case 90:
+		img = imaging.Rotate270(img) // Rotate270 = 90° CW
+	case -90:
+		img = imaging.Rotate90(img) // Rotate90 = 90° CCW
+	case 180:
+		img = imaging.Rotate180(img)
+	default:
+		return fmt.Errorf("unsupported rotation: %d", degrees)
 	}
+
+	if err := imaging.Save(img, origPath, imaging.JPEGQuality(CompressQuality)); err != nil {
+		return fmt.Errorf("save original: %w", err)
+	}
+
+	// Regenerate the compressed version from the already-rotated in-memory image
+	// rather than rotating the compressed file separately. This is simpler and avoids
+	// any EXIF double-application on subsequent rotations.
 	if compressedFilename != "" {
-		if err := rotate(filepath.Join(dir, compressedFilename)); err != nil {
-			return fmt.Errorf("rotate compressed: %w", err)
+		compressed := img
+		b := compressed.Bounds()
+		if b.Dx() > CompressMaxEdge || b.Dy() > CompressMaxEdge {
+			compressed = imaging.Fit(compressed, CompressMaxEdge, CompressMaxEdge, imaging.Lanczos)
+		}
+		if err := imaging.Save(compressed, filepath.Join(dir, compressedFilename), imaging.JPEGQuality(CompressQuality)); err != nil {
+			return fmt.Errorf("save compressed: %w", err)
 		}
 	}
+
 	return nil
 }
 
