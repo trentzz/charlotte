@@ -275,11 +275,11 @@ func DeleteAlbum(db *sql.DB, id int64) error {
 	return err
 }
 
-// UpdateAlbum updates the title and description of an album.
-func UpdateAlbum(db *sql.DB, albumID int64, title, description string) error {
+// UpdateAlbum updates the title, description, and slug of an album.
+func UpdateAlbum(db *sql.DB, albumID int64, title, description, slug string) error {
 	_, err := db.Exec(
-		`UPDATE gallery_albums SET title = ?, description = ?, updated_at = unixepoch() WHERE id = ?`,
-		title, description, albumID,
+		`UPDATE gallery_albums SET title = ?, description = ?, slug = ?, updated_at = unixepoch() WHERE id = ?`,
+		title, description, slug, albumID,
 	)
 	return err
 }

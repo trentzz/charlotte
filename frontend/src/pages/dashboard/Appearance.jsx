@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import {
   Box, Typography, Slider, Alert, CircularProgress,
   Divider, Stack, Tabs, Tab, TextField, useTheme,
+  ToggleButtonGroup, ToggleButton,
 } from '@mui/material'
 import { HslColorPicker } from 'react-colorful'
 import client from '../../api/client.js'
@@ -42,6 +43,7 @@ const DEFAULT_THEME = {
   font_ui: 'Inter',
   font_size: 16,
   nav_font_size: 13,
+  default_mode: 'light',
 }
 
 function hslStr(h, s, l) {
@@ -338,6 +340,22 @@ export default function Appearance() {
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {/* Default mode for visitors */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle2" gutterBottom>Default mode for visitors</Typography>
+        <ToggleButtonGroup
+          value={theme.default_mode || 'light'}
+          exclusive
+          onChange={(_, v) => v && set('default_mode', v)}
+          size="small"
+        >
+          <ToggleButton value="light">Light</ToggleButton>
+          <ToggleButton value="dark">Dark</ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      <Divider sx={{ mb: 3 }} />
 
       {/* Colour pickers — tabbed by mode */}
       <Typography variant="subtitle1" fontWeight={600} gutterBottom>

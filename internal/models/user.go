@@ -62,6 +62,7 @@ type UserTheme struct {
 	FontUI       string `json:"font_ui"`        // UI/interface font (menus, buttons, labels), default "Inter"
 	FontSize     int    `json:"font_size"`      // base font size px, default 16
 	NavFontSize  int    `json:"nav_font_size"`  // nav label size px, default 13
+	DefaultMode  string `json:"default_mode"`   // default light/dark mode for visitors, "light" or "dark"
 }
 
 // DefaultTheme returns the default visual theme matching the site's built-in palette.
@@ -96,6 +97,7 @@ func DefaultTheme() UserTheme {
 		FontUI:       "Inter",
 		FontSize:     16,
 		NavFontSize:  13,
+		DefaultMode:  "light",
 	}
 }
 

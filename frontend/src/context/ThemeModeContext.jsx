@@ -4,10 +4,11 @@ const STORAGE_KEY = 'charlotte_theme_mode'
 
 const ThemeModeContext = createContext(null)
 
-export function ThemeModeProvider({ children }) {
+export function ThemeModeProvider({ children, defaultMode = 'light' }) {
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
-    return stored === 'dark' ? 'dark' : 'light'
+    if (stored === 'dark' || stored === 'light') return stored
+    return defaultMode
   })
 
   const toggleMode = useCallback(() => {

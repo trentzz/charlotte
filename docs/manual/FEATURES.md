@@ -32,6 +32,7 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - Photos belong to albums. A default album named "Uploads" is created automatically for unassigned photos.
 - **Default album**: one album per user is marked as the default upload destination (star badge in the dashboard). When auto-created, this album is named "Uploads". Photos uploaded via blog image upload, or any upload that does not specify an album, go into this album. Set any album as default using the star button on the album card or inside the album view. The first album created for a user is automatically marked as the default. Migration 23.
 - Per-album visibility toggle (public / private). Toggle from the album card or the album view header (eye icon). Unpublished albums are hidden from the public gallery. The album card in the dashboard shows only the eye toggle icon to indicate publish status — no "Unpublished" chip is shown.
+- **Slug regeneration on rename**: when an album's title is changed, the slug is automatically regenerated from the new title. Conflicts are resolved by appending `-2`, `-3`, etc. The updated slug is returned in the API response and the frontend state is updated immediately.
 - Album cover photo: set automatically on first upload; can be changed manually.
 - **Gallery home**: single top nav only, then a "Gallery" section title, album grid (no rounded corners) and a recent photos grid. Only top-level albums (no parent) appear here.
 - **Album page**: editorial, photography-first layout inspired by Sean Tucker's style. Centred title in the display font, muted photo count, optional italic description, then a full-width masonry photo grid (3 columns on desktop, 2 on tablet ≤900 px, 1 on mobile ≤600 px) with 10 px gap, original aspect ratios preserved, and no rounded corners. Back link at the bottom.
@@ -229,10 +230,11 @@ Each user can fully customise the visual style of their public pages from Dashbo
 - **UI font**: used for menus, buttons, and labels (best kept as a sans-serif).
 - **Base font size**: slider 12–22 px.
 - **Nav label size**: slider 10–20 px.
+- **Default mode for visitors**: toggle (Light / Dark) at the top of the Appearance page. Controls what mode a visitor sees when they first arrive and have no stored preference. Stored as `default_mode` in `theme_json`. Default is `"light"`.
 - Colours are tabbed by mode (Light / Dark). Auto-saves 800 ms after the last change.
 - Settings stored as JSON per user in `theme_json`.
 
-Default theme: sage green accent, warm cream background, dark warm body text (HSL 220, 15, 20), near-black headings (HSL 220, 20, 10), Playfair Display display and body font, Inter UI font, 16 px base size, 13 px nav labels. Dark mode defaults: light grey body text (HSL 220, 15, 85), near-white headings (HSL 220, 10, 92).
+Default theme: sage green accent, warm cream background, dark warm body text (HSL 220, 15, 20), near-black headings (HSL 220, 20, 10), Playfair Display display and body font, Inter UI font, 16 px base size, 13 px nav labels, light default mode. Dark mode defaults: light grey body text (HSL 220, 15, 85), near-white headings (HSL 220, 10, 92).
 
 ## Site appearance (admin)
 

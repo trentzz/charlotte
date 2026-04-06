@@ -95,12 +95,15 @@ func (a *App) DashAlbumUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := models.UpdateAlbum(a.DB, album.ID, title, strings.TrimSpace(body.Description)); err != nil {
+	finalSlug := makeUniqueSlug(a.DB, "gallery_albums", album.UserID, album.ID, slug.Make(title))
+
+	if err := models.UpdateAlbum(a.DB, album.ID, title, strings.TrimSpace(body.Description), finalSlug); err != nil {
 		a.internalError(w, r, err)
 		return
 	}
 	album.Title = title
 	album.Description = strings.TrimSpace(body.Description)
+	album.Slug = finalSlug
 	a.respondJSON(w, http.StatusOK, toAlbumJSON(album))
 }
 

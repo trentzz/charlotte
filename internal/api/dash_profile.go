@@ -222,6 +222,12 @@ func (a *App) DashAppearanceSave(w http.ResponseWriter, r *http.Request) {
 		theme.FontUI = body.FontUI
 	}
 
+	if body.DefaultMode == "dark" {
+		theme.DefaultMode = "dark"
+	} else {
+		theme.DefaultMode = "light"
+	}
+
 	if err := models.UpdateUserTheme(a.DB, user.ID, theme); err != nil {
 		a.internalError(w, r, err)
 		return

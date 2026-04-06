@@ -72,8 +72,8 @@ export default function Gallery() {
   async function handleEdit(form) {
     setSaving(true)
     try {
-      await client.put(`/dashboard/gallery/albums/${editAlbum.id}`, form)
-      setAlbums((a) => a.map((al) => al.id === editAlbum.id ? { ...al, ...form } : al))
+      const res = await client.put(`/dashboard/gallery/albums/${editAlbum.id}`, form)
+      setAlbums((a) => a.map((al) => al.id === editAlbum.id ? { ...al, ...res.data } : al))
       setEditAlbum(null)
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update album.')

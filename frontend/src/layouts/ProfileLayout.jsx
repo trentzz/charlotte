@@ -540,7 +540,7 @@ export default function ProfileLayout() {
   }
 
   return (
-    <ThemeModeProvider>
+    <ThemeModeProvider defaultMode={profile?.theme?.default_mode || 'light'}>
       <ProfileLayoutInner username={username} profile={profile} navData={navData} />
     </ThemeModeProvider>
   )
