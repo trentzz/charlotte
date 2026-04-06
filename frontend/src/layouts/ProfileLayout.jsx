@@ -254,10 +254,19 @@ function ProfileLayoutInner({ username, profile, navData }) {
             color: 'text.primary',
           }}
         >
-          {/* Toolbar uses flexWrap so nav links drop to a second row on mobile.
+          {/* Two-row on mobile, single row on desktop.
               Mobile order: username(0) | right-controls(1, ml:auto) → row 1; nav(2, width:100%) → row 2.
-              Desktop order: username(0) | nav(1, flex:1) | right-controls(2) → single row. */}
-          <Toolbar sx={{ gap: 0.5, px: { xs: 2, md: 4 }, flexWrap: 'wrap', alignItems: 'center', minHeight: { xs: 'unset', md: 64 } }}>
+              Desktop order: username(0) | nav(1, flex:1) | right-controls(2) → single row at 70% width. */}
+          <Toolbar sx={{ gap: 0.5, px: { xs: 2, md: 4 }, minHeight: { xs: 'unset', md: 64 } }}>
+            <Box sx={{
+              maxWidth: { xs: '100%', md: '70%' },
+              mx: 'auto',
+              width: '100%',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: 0.5,
+            }}>
 
             {/* Logo: user display name — always row 1, left */}
             <Typography
@@ -450,6 +459,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
               )}
             </Box>
 
+            </Box>{/* end 70% inner box */}
           </Toolbar>
         </AppBar>
 

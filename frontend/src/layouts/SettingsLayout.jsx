@@ -193,34 +193,123 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
             color: 'text.primary',
           }}
         >
-          <Toolbar sx={{ gap: 0.5, px: { xs: 2, md: 4 } }}>
-            <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {/* Logo: user display name → links to their public page */}
+          {/* Two-row on mobile, single row on desktop at 70% width — mirrors ProfileLayout. */}
+          <Toolbar sx={{ gap: 0.5, px: { xs: 2, md: 4 }, minHeight: { xs: 'unset', md: 64 } }}>
+            <Box sx={{
+              maxWidth: { xs: '100%', md: '70%' },
+              mx: 'auto',
+              width: '100%',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: 0.5,
+            }}>
+
+              {/* Logo: user display name → links to their public page — always row 1, left */}
               <Typography
                 component={RouterLink}
                 to={`/u/${username}`}
                 variant="h6"
                 sx={{
                   flexShrink: 0,
-                  mr: 3,
+                  mr: { xs: 0, md: 3 },
                   textDecoration: 'none',
                   color: 'inherit',
                   fontFamily: `'${fontDisplay}', Georgia, serif`,
                   fontWeight: 700,
                   fontSize: navFontSize + 3,
+                  order: 0,
+                  py: { xs: 1, md: 0 },
                 }}
               >
                 {navData?.profile?.display_name || username}
               </Typography>
 
-              {/* Nav items — scrollable, takes all available space */}
+              {/* Right controls — row 1 right on mobile (ml:auto), rightmost on desktop (order:2) */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, ml: { xs: 'auto', md: 0 }, order: { xs: 1, md: 2 } }}>
+                {/* Dark/light toggle */}
+                <Box sx={{ display: 'flex', alignItems: 'center', mx: 1.5, opacity: 0.75 }}>
+                  <LightModeIcon sx={{ fontSize: 14 }} />
+                  <Switch
+                    checked={mode === 'dark'}
+                    onChange={toggleMode}
+                    size="small"
+                    color="default"
+                    sx={{ mx: 0.5 }}
+                  />
+                  <DarkModeIcon sx={{ fontSize: 14 }} />
+                </Box>
+
+                {/* Account button — icon only on mobile, icon + label on desktop */}
+                <Button
+                  onClick={handleAccountClick}
+                  startIcon={<AccountCircleIcon />}
+                  endIcon={<KeyboardArrowDownIcon sx={{ display: { xs: 'none', md: 'inline-flex' } }} />}
+                  sx={{
+                    color: 'inherit',
+                    ml: 0.5,
+                    fontFamily: `'${fontDisplay}', Georgia, serif`,
+                    fontSize: navFontSize,
+                    textTransform: 'uppercase',
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    minWidth: { xs: 0, md: 'auto' },
+                    px: { xs: 0.5, md: 1.5 },
+                    '& .MuiButton-startIcon': { mr: { xs: 0, md: 1 } },
+                  }}
+                >
+                  <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>Account</Box>
+                </Button>
+                <Menu
+                  anchorEl={accountAnchor}
+                  open={Boolean(accountAnchor)}
+                  onClose={handleAccountClose}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  PaperProps={{ sx: { minWidth: 200 } }}
+                >
+                  <MenuItem
+                    component={RouterLink}
+                    to={`/u/${username}`}
+                    onClick={handleAccountClose}
+                  >
+                    My Page
+                  </MenuItem>
+                  <MenuItem
+                    component={RouterLink}
+                    to="/dashboard/profile"
+                    onClick={handleAccountClose}
+                  >
+                    Settings
+                  </MenuItem>
+                  {user?.is_admin && (
+                    <MenuItem
+                      component={RouterLink}
+                      to="/admin/users"
+                      onClick={handleAccountClose}
+                    >
+                      Admin
+                    </MenuItem>
+                  )}
+                  <Divider />
+                  <MenuItem onClick={handleLogout}>Log out</MenuItem>
+                </Menu>
+              </Box>
+
+              {/* Nav items — row 2 on mobile (width:100% forces wrap), inline on desktop */}
               <Box sx={{
-                flex: 1,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 2,
+                gap: { xs: 0, md: 2 },
                 overflowX: 'auto',
-                mx: 1,
+                order: { xs: 2, md: 1 },
+                width: { xs: '100%', md: 'auto' },
+                flex: { xs: '0 0 100%', md: '1' },
+                mx: { xs: 0, md: 1 },
+                pb: { xs: 1, md: 0 },
+                borderTop: { xs: '1px solid', md: 'none' },
+                borderColor: 'divider',
+                mt: { xs: 0.5, md: 0 },
                 '&::-webkit-scrollbar': { display: 'none' },
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none',
@@ -290,74 +379,7 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
                 )}
               </Box>
 
-              {/* Right controls — fixed, never scrolled */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                {/* Dark/light toggle */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mx: 1.5, opacity: 0.75 }}>
-                  <LightModeIcon sx={{ fontSize: 14 }} />
-                  <Switch
-                    checked={mode === 'dark'}
-                    onChange={toggleMode}
-                    size="small"
-                    color="default"
-                    sx={{ mx: 0.5 }}
-                  />
-                  <DarkModeIcon sx={{ fontSize: 14 }} />
-                </Box>
-
-                {/* Account button with icon + text */}
-                <Button
-                  onClick={handleAccountClick}
-                  startIcon={<AccountCircleIcon />}
-                  endIcon={<KeyboardArrowDownIcon />}
-                  sx={{
-                    color: 'inherit',
-                    ml: 0.5,
-                    fontFamily: `'${fontDisplay}', Georgia, serif`,
-                    fontSize: navFontSize,
-                    textTransform: 'uppercase',
-                    fontWeight: 700,
-                    letterSpacing: '0.08em',
-                  }}
-                >
-                  Account
-                </Button>
-                <Menu
-                  anchorEl={accountAnchor}
-                  open={Boolean(accountAnchor)}
-                  onClose={handleAccountClose}
-                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                  PaperProps={{ sx: { minWidth: 200 } }}
-                >
-                  <MenuItem
-                    component={RouterLink}
-                    to={`/u/${username}`}
-                    onClick={handleAccountClose}
-                  >
-                    My Page
-                  </MenuItem>
-                  <MenuItem
-                    component={RouterLink}
-                    to="/dashboard/profile"
-                    onClick={handleAccountClose}
-                  >
-                    Settings
-                  </MenuItem>
-                  {user?.is_admin && (
-                    <MenuItem
-                      component={RouterLink}
-                      to="/admin/users"
-                      onClick={handleAccountClose}
-                    >
-                      Admin
-                    </MenuItem>
-                  )}
-                  <Divider />
-                  <MenuItem onClick={handleLogout}>Log out</MenuItem>
-                </Menu>
-              </Box>
-            </Box>
+            </Box>{/* end 70% inner box */}
           </Toolbar>
         </AppBar>
 
