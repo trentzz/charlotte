@@ -255,8 +255,8 @@ function ProfileLayoutInner({ username, profile, navData }) {
           }}
         >
           {/* Toolbar uses flexWrap so nav links drop to a second row on mobile.
-              CSS order: username(0) + right-controls(1) share row 1;
-              nav(2) has width:100% on xs so it wraps to row 2. */}
+              Mobile order: username(0) | right-controls(1, ml:auto) → row 1; nav(2, width:100%) → row 2.
+              Desktop order: username(0) | nav(1, flex:1) | right-controls(2) → single row. */}
           <Toolbar sx={{ gap: 0.5, px: { xs: 2, md: 4 }, flexWrap: 'wrap', alignItems: 'center', minHeight: { xs: 'unset', md: 64 } }}>
 
             {/* Logo: user display name — always row 1, left */}
@@ -279,8 +279,8 @@ function ProfileLayoutInner({ username, profile, navData }) {
               {profile?.display_name || username}
             </Typography>
 
-            {/* Right controls — row 1, right (ml:auto pushes it to the end) */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, ml: 'auto', order: 1 }}>
+            {/* Right controls — row 1 right on mobile (ml:auto), rightmost on desktop (order:2) */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, ml: { xs: 'auto', md: 0 }, order: { xs: 1, md: 2 } }}>
               {/* Search button */}
               <IconButton
                 onClick={() => setSearchOpen(true)}
@@ -371,9 +371,9 @@ function ProfileLayoutInner({ username, profile, navData }) {
               alignItems: 'center',
               gap: { xs: 0, md: 2 },
               overflowX: 'auto',
-              order: 2,
+              order: { xs: 2, md: 1 },
               // On mobile: full-width row so it wraps below username + controls.
-              // On desktop: flex:1 so it fills the middle of the single row.
+              // On desktop: flex:1 fills the middle between username and right controls.
               width: { xs: '100%', md: 'auto' },
               flex: { xs: '0 0 100%', md: '1' },
               mx: { xs: 0, md: 1 },
