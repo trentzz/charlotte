@@ -254,185 +254,202 @@ function ProfileLayoutInner({ username, profile, navData }) {
             color: 'text.primary',
           }}
         >
-          <Toolbar sx={{ gap: 0.5, px: { xs: 2, md: 4 } }}>
-            <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {/* Logo: user display name */}
-              <Typography
-                component={RouterLink}
-                to={`/u/${username}`}
-                variant="h6"
-                sx={{
-                  flexShrink: 0,
-                  mr: 3,
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  fontFamily: `'${fontDisplay}', Georgia, serif`,
-                  fontWeight: 700,
-                  fontSize: navFontSize + 3,
-                }}
+          {/* Toolbar uses flexWrap so nav links drop to a second row on mobile.
+              CSS order: username(0) + right-controls(1) share row 1;
+              nav(2) has width:100% on xs so it wraps to row 2. */}
+          <Toolbar sx={{ gap: 0.5, px: { xs: 2, md: 4 }, flexWrap: 'wrap', alignItems: 'center', minHeight: { xs: 'unset', md: 64 } }}>
+
+            {/* Logo: user display name — always row 1, left */}
+            <Typography
+              component={RouterLink}
+              to={`/u/${username}`}
+              variant="h6"
+              sx={{
+                flexShrink: 0,
+                mr: { xs: 0, md: 3 },
+                textDecoration: 'none',
+                color: 'inherit',
+                fontFamily: `'${fontDisplay}', Georgia, serif`,
+                fontWeight: 700,
+                fontSize: navFontSize + 3,
+                order: 0,
+                py: { xs: 1, md: 0 },
+              }}
+            >
+              {profile?.display_name || username}
+            </Typography>
+
+            {/* Right controls — row 1, right (ml:auto pushes it to the end) */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, ml: 'auto', order: 1 }}>
+              {/* Search button */}
+              <IconButton
+                onClick={() => setSearchOpen(true)}
+                size="small"
+                sx={{ color: 'inherit', opacity: 0.75 }}
+                aria-label="Search"
               >
-                {profile?.display_name || username}
-              </Typography>
+                <SearchIcon fontSize="small" />
+              </IconButton>
 
-              {/* Nav items — scrollable, takes all available space */}
-              <Box sx={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                overflowX: 'auto',
-                mx: 1,
-                '&::-webkit-scrollbar': { display: 'none' },
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-              }}>
-                {navSections.map((section) => {
-                  if (section === 'home') {
-                    return (
-                      <Button key="home" component={RouterLink} to={`/u/${username}`}
-                        disableRipple sx={{ color: 'inherit', ...navLabelStyle, '&:hover': { bgcolor: 'transparent' } }}>
-                        {navLabels.home || 'Home'}
-                      </Button>
-                    )
-                  }
-                  if (section === 'about' && features.about === true) {
-                    return (
-                      <Button key="about" component={RouterLink} to={`/u/${username}/about`}
-                        disableRipple sx={{ color: 'inherit', ...navLabelStyle, '&:hover': { bgcolor: 'transparent' } }}>
-                        {navLabels.about || 'About'}
-                      </Button>
-                    )
-                  }
-                  if (section === 'blog' && features.blog === true) {
-                    return (
-                      <NavDropdown key="blog" label={navLabels.blog || 'Blog'} items={blogItems}
-                        allHref={`/u/${username}/blog`} navFontSize={navFontSize} fontDisplay={fontDisplay} />
-                    )
-                  }
-                  if (section === 'projects' && features.projects === true) {
-                    return (
-                      <NavDropdown key="projects" label={navLabels.projects || 'Projects'} items={projectItems}
-                        allHref={`/u/${username}/projects`} navFontSize={navFontSize} fontDisplay={fontDisplay} />
-                    )
-                  }
-                  if (section === 'gallery' && features.gallery === true) {
-                    return (
-                      <NavDropdown key="gallery" label={navLabels.gallery || 'Gallery'} items={galleryItems}
-                        allHref={`/u/${username}/gallery`} navFontSize={navFontSize} fontDisplay={fontDisplay} />
-                    )
-                  }
-                  if (section === 'recipes' && features.recipes === true) {
-                    return (
-                      <NavDropdown key="recipes" label={navLabels.recipes || 'Recipes'} items={recipeItems}
-                        allHref={`/u/${username}/recipes`} navFontSize={navFontSize} fontDisplay={fontDisplay} />
-                    )
-                  }
-                  return null
-                })}
-                {pinnedPages.map((p) => (
-                  <Button
-                    key={p.id}
-                    component={RouterLink}
-                    to={`/u/${username}/pages/${p.slug}`}
-                    disableRipple
-                    sx={{ color: 'inherit', ...navLabelStyle, '&:hover': { bgcolor: 'transparent' } }}
-                  >
-                    {p.title}
-                  </Button>
-                ))}
-                {dropdownItems.length > 0 && (
-                  <NavDropdown
-                    label={customNav.label || 'More'}
-                    items={dropdownItems}
-                    allHref={dropdownItems[0]?.href || '#'}
-                    navFontSize={navFontSize}
-                    fontDisplay={fontDisplay}
-                  />
-                )}
-              </Box>
-
-              {/* Right controls — fixed, never scrolled */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                {/* Search button */}
-                <IconButton
-                  onClick={() => setSearchOpen(true)}
+              {/* Dark/light toggle */}
+              <Box sx={{ display: 'flex', alignItems: 'center', mx: 1.5, opacity: 0.75 }}>
+                <LightModeIcon sx={{ fontSize: 14 }} />
+                <Switch
+                  checked={mode === 'dark'}
+                  onChange={toggleMode}
                   size="small"
-                  sx={{ color: 'inherit', opacity: 0.75 }}
-                  aria-label="Search"
-                >
-                  <SearchIcon fontSize="small" />
-                </IconButton>
-
-                {/* Dark/light toggle */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mx: 1.5, opacity: 0.75 }}>
-                  <LightModeIcon sx={{ fontSize: 14 }} />
-                  <Switch
-                    checked={mode === 'dark'}
-                    onChange={toggleMode}
-                    size="small"
-                    color="default"
-                    sx={{ mx: 0.5 }}
-                  />
-                  <DarkModeIcon sx={{ fontSize: 14 }} />
-                </Box>
-
-                {/* Account button with icon + text for logged-in users */}
-                {authUser && (
-                  <>
-                    <Button
-                      onClick={handleAccountClick}
-                      startIcon={<AccountCircleIcon />}
-                      endIcon={<KeyboardArrowDownIcon />}
-                      sx={{
-                        color: 'inherit',
-                        ml: 0.5,
-                        fontFamily: `'${fontDisplay}', Georgia, serif`,
-                        fontSize: navFontSize,
-                        textTransform: 'uppercase',
-                        fontWeight: 700,
-                        letterSpacing: '0.08em',
-                      }}
-                    >
-                      Account
-                    </Button>
-                    <Menu
-                      anchorEl={accountAnchor}
-                      open={Boolean(accountAnchor)}
-                      onClose={handleAccountClose}
-                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                      PaperProps={{ sx: { minWidth: 200 } }}
-                    >
-                      <MenuItem
-                        component={RouterLink}
-                        to={`/u/${authUser.username}`}
-                        onClick={handleAccountClose}
-                      >
-                        My Page
-                      </MenuItem>
-                      <MenuItem
-                        component={RouterLink}
-                        to="/dashboard/profile"
-                        onClick={handleAccountClose}
-                      >
-                        Settings
-                      </MenuItem>
-                      {authUser.is_admin && (
-                        <MenuItem
-                          component={RouterLink}
-                          to="/admin/users"
-                          onClick={handleAccountClose}
-                        >
-                          Admin
-                        </MenuItem>
-                      )}
-                      <Divider />
-                      <MenuItem onClick={handleLogout}>Log out</MenuItem>
-                    </Menu>
-                  </>
-                )}
+                  color="default"
+                  sx={{ mx: 0.5 }}
+                />
+                <DarkModeIcon sx={{ fontSize: 14 }} />
               </Box>
+
+              {/* Account button with icon + text for logged-in users */}
+              {authUser && (
+                <>
+                  <Button
+                    onClick={handleAccountClick}
+                    startIcon={<AccountCircleIcon />}
+                    endIcon={<KeyboardArrowDownIcon sx={{ display: { xs: 'none', md: 'inline-flex' } }} />}
+                    sx={{
+                      color: 'inherit',
+                      ml: 0.5,
+                      fontFamily: `'${fontDisplay}', Georgia, serif`,
+                      fontSize: navFontSize,
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      // On mobile: collapse to icon only — hide label and remove extra padding
+                      minWidth: { xs: 0, md: 'auto' },
+                      px: { xs: 0.5, md: 1.5 },
+                      '& .MuiButton-startIcon': { mr: { xs: 0, md: 1 } },
+                    }}
+                  >
+                    <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>Account</Box>
+                  </Button>
+                  <Menu
+                    anchorEl={accountAnchor}
+                    open={Boolean(accountAnchor)}
+                    onClose={handleAccountClose}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    PaperProps={{ sx: { minWidth: 200 } }}
+                  >
+                    <MenuItem
+                      component={RouterLink}
+                      to={`/u/${authUser.username}`}
+                      onClick={handleAccountClose}
+                    >
+                      My Page
+                    </MenuItem>
+                    <MenuItem
+                      component={RouterLink}
+                      to="/dashboard/profile"
+                      onClick={handleAccountClose}
+                    >
+                      Settings
+                    </MenuItem>
+                    {authUser.is_admin && (
+                      <MenuItem
+                        component={RouterLink}
+                        to="/admin/users"
+                        onClick={handleAccountClose}
+                      >
+                        Admin
+                      </MenuItem>
+                    )}
+                    <Divider />
+                    <MenuItem onClick={handleLogout}>Log out</MenuItem>
+                  </Menu>
+                </>
+              )}
             </Box>
+
+            {/* Nav items — row 2 on mobile (width:100% forces wrap), inline on desktop */}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: { xs: 0, md: 2 },
+              overflowX: 'auto',
+              order: 2,
+              // On mobile: full-width row so it wraps below username + controls.
+              // On desktop: flex:1 so it fills the middle of the single row.
+              width: { xs: '100%', md: 'auto' },
+              flex: { xs: '0 0 100%', md: '1' },
+              mx: { xs: 0, md: 1 },
+              pb: { xs: 1, md: 0 },
+              borderTop: { xs: '1px solid', md: 'none' },
+              borderColor: 'divider',
+              mt: { xs: 0.5, md: 0 },
+              '&::-webkit-scrollbar': { display: 'none' },
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}>
+              {navSections.map((section) => {
+                if (section === 'home') {
+                  return (
+                    <Button key="home" component={RouterLink} to={`/u/${username}`}
+                      disableRipple sx={{ color: 'inherit', ...navLabelStyle, '&:hover': { bgcolor: 'transparent' } }}>
+                      {navLabels.home || 'Home'}
+                    </Button>
+                  )
+                }
+                if (section === 'about' && features.about === true) {
+                  return (
+                    <Button key="about" component={RouterLink} to={`/u/${username}/about`}
+                      disableRipple sx={{ color: 'inherit', ...navLabelStyle, '&:hover': { bgcolor: 'transparent' } }}>
+                      {navLabels.about || 'About'}
+                    </Button>
+                  )
+                }
+                if (section === 'blog' && features.blog === true) {
+                  return (
+                    <NavDropdown key="blog" label={navLabels.blog || 'Blog'} items={blogItems}
+                      allHref={`/u/${username}/blog`} navFontSize={navFontSize} fontDisplay={fontDisplay} />
+                  )
+                }
+                if (section === 'projects' && features.projects === true) {
+                  return (
+                    <NavDropdown key="projects" label={navLabels.projects || 'Projects'} items={projectItems}
+                      allHref={`/u/${username}/projects`} navFontSize={navFontSize} fontDisplay={fontDisplay} />
+                  )
+                }
+                if (section === 'gallery' && features.gallery === true) {
+                  return (
+                    <NavDropdown key="gallery" label={navLabels.gallery || 'Gallery'} items={galleryItems}
+                      allHref={`/u/${username}/gallery`} navFontSize={navFontSize} fontDisplay={fontDisplay} />
+                  )
+                }
+                if (section === 'recipes' && features.recipes === true) {
+                  return (
+                    <NavDropdown key="recipes" label={navLabels.recipes || 'Recipes'} items={recipeItems}
+                      allHref={`/u/${username}/recipes`} navFontSize={navFontSize} fontDisplay={fontDisplay} />
+                  )
+                }
+                return null
+              })}
+              {pinnedPages.map((p) => (
+                <Button
+                  key={p.id}
+                  component={RouterLink}
+                  to={`/u/${username}/pages/${p.slug}`}
+                  disableRipple
+                  sx={{ color: 'inherit', ...navLabelStyle, '&:hover': { bgcolor: 'transparent' } }}
+                >
+                  {p.title}
+                </Button>
+              ))}
+              {dropdownItems.length > 0 && (
+                <NavDropdown
+                  label={customNav.label || 'More'}
+                  items={dropdownItems}
+                  allHref={dropdownItems[0]?.href || '#'}
+                  navFontSize={navFontSize}
+                  fontDisplay={fontDisplay}
+                />
+              )}
+            </Box>
+
           </Toolbar>
         </AppBar>
 
