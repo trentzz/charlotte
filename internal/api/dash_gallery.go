@@ -73,6 +73,37 @@ func (a *App) DashAlbumCreate(w http.ResponseWriter, r *http.Request) {
 	a.respondJSON(w, http.StatusCreated, toAlbumJSON(album))
 }
 
+// DashAlbumUpdate handles PUT /api/v1/dashboard/gallery/albums/{id} — update title and description.
+func (a *App) DashAlbumUpdate(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	album, ok := a.getOwnedAlbum(w, r, user)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	title := strings.TrimSpace(body.Title)
+	if title == "" {
+		a.respondError(w, http.StatusUnprocessableEntity, "title is required")
+		return
+	}
+
+	if err := models.UpdateAlbum(a.DB, album.ID, title, strings.TrimSpace(body.Description)); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	album.Title = title
+	album.Description = strings.TrimSpace(body.Description)
+	a.respondJSON(w, http.StatusOK, toAlbumJSON(album))
+}
+
 // DashAlbumGet handles GET /api/v1/dashboard/gallery/albums/{id} — album with photos.
 func (a *App) DashAlbumGet(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())

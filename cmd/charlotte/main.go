@@ -191,6 +191,7 @@ func main() {
 	mux.Handle("POST /api/v1/dashboard/gallery/albums", authed(csrf(http.HandlerFunc(app.DashAlbumCreate))))
 	mux.Handle("POST /api/v1/dashboard/gallery/photos", authed(csrf(http.HandlerFunc(app.DashPhotoUpload))))
 	mux.Handle("GET /api/v1/dashboard/gallery/albums/{id}", authed(http.HandlerFunc(app.DashAlbumGet)))
+	mux.Handle("PUT /api/v1/dashboard/gallery/albums/{id}", authed(csrf(http.HandlerFunc(app.DashAlbumUpdate))))
 	mux.Handle("PATCH /api/v1/dashboard/gallery/albums/{id}/toggle", authed(csrf(http.HandlerFunc(app.DashAlbumToggle))))
 	mux.Handle("PATCH /api/v1/dashboard/gallery/albums/{id}/default", authed(csrf(http.HandlerFunc(app.DashAlbumSetDefault))))
 	mux.Handle("PATCH /api/v1/dashboard/gallery/albums/{id}/default-child", authed(csrf(http.HandlerFunc(app.DashAlbumSetDefaultChild))))

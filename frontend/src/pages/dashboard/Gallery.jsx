@@ -176,6 +176,16 @@ export default function Gallery() {
                           variant="outlined"
                         />
                       )}
+                      {album.parent_id && (() => {
+                        const parent = albums.find((a) => a.id === album.parent_id)
+                        return (
+                          <Chip
+                            label={`Subalbum of ${parent?.title ?? '…'}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )
+                      })()}
                     </Box>
                     {album.description && (
                       <Typography variant="body2" color="text.secondary">{album.description}</Typography>

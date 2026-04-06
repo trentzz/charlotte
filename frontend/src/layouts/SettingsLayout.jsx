@@ -193,10 +193,11 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
             color: 'text.primary',
           }}
         >
-          {/* Two-row on mobile, single row on desktop at 70% width — mirrors ProfileLayout. */}
+          {/* Two-row on mobile, single row on desktop at 60% width — mirrors ProfileLayout.
+              Desktop: username-box(flex:1) | nav(flex:none, centred) | controls-box(flex:1, right-aligned). */}
           <Toolbar sx={{ gap: 0.5, px: { xs: 2, md: 4 }, minHeight: { xs: 'unset', md: 64 } }}>
             <Box sx={{
-              maxWidth: { xs: '100%', md: '70%' },
+              maxWidth: { xs: '100%', md: '60%' },
               mx: 'auto',
               width: '100%',
               display: 'flex',
@@ -205,28 +206,28 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
               gap: 0.5,
             }}>
 
-              {/* Logo: user display name → links to their public page — always row 1, left */}
+              {/* Logo: user display name — row 1 left; flex:1 on desktop to balance controls */}
+              <Box sx={{ flex: { xs: 'none', md: 1 }, order: 0, display: 'flex', alignItems: 'center' }}>
               <Typography
                 component={RouterLink}
                 to={`/u/${username}`}
                 variant="h6"
                 sx={{
                   flexShrink: 0,
-                  mr: { xs: 0, md: 3 },
                   textDecoration: 'none',
                   color: 'inherit',
                   fontFamily: `'${fontDisplay}', Georgia, serif`,
                   fontWeight: 700,
                   fontSize: navFontSize + 3,
-                  order: 0,
                   py: { xs: 1, md: 0 },
                 }}
               >
                 {navData?.profile?.display_name || username}
               </Typography>
+              </Box>
 
-              {/* Right controls — row 1 right on mobile (ml:auto), rightmost on desktop (order:2) */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, ml: { xs: 'auto', md: 0 }, order: { xs: 1, md: 2 } }}>
+              {/* Right controls — row 1 right on mobile (ml:auto); flex:1 right-aligned on desktop */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0, ml: { xs: 'auto', md: 0 }, order: { xs: 1, md: 2 }, flex: { xs: 'none', md: 1 }, justifyContent: { md: 'flex-end' } }}>
                 {/* Dark/light toggle */}
                 <Box sx={{ display: 'flex', alignItems: 'center', mx: 1.5, opacity: 0.75 }}>
                   <LightModeIcon sx={{ fontSize: 14 }} />
@@ -296,16 +297,17 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
                 </Menu>
               </Box>
 
-              {/* Nav items — row 2 on mobile (width:100% forces wrap), inline on desktop */}
+              {/* Nav items — row 2 on mobile (width:100% forces wrap), centred on desktop.
+                  Equal flex:1 on username-box and controls-box flanks this naturally to centre. */}
               <Box sx={{
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: { md: 'center' },
                 gap: { xs: 0, md: 2 },
                 overflowX: 'auto',
                 order: { xs: 2, md: 1 },
                 width: { xs: '100%', md: 'auto' },
-                flex: { xs: '0 0 100%', md: '1' },
-                mx: { xs: 0, md: 1 },
+                flex: { xs: '0 0 100%', md: 'none' },
                 pb: { xs: 1, md: 0 },
                 borderTop: { xs: '1px solid', md: 'none' },
                 borderColor: 'divider',

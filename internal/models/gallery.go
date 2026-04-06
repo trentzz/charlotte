@@ -275,6 +275,15 @@ func DeleteAlbum(db *sql.DB, id int64) error {
 	return err
 }
 
+// UpdateAlbum updates the title and description of an album.
+func UpdateAlbum(db *sql.DB, albumID int64, title, description string) error {
+	_, err := db.Exec(
+		`UPDATE gallery_albums SET title = ?, description = ?, updated_at = unixepoch() WHERE id = ?`,
+		title, description, albumID,
+	)
+	return err
+}
+
 // SetAlbumCover sets the cover photo for an album unconditionally.
 func SetAlbumCover(db *sql.DB, albumID, photoID int64) error {
 	_, err := db.Exec(
