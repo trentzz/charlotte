@@ -44,7 +44,7 @@ export default function PhotoGrid({ photos }) {
 
   return (
     <>
-      <Box sx={{ px: { xs: 2, md: 6 } }}>
+      <Box sx={{ px: { xs: 1, md: 2 } }}>
         <Masonry
           breakpointCols={breakpointColumns}
           style={masonryStyles}
