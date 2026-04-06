@@ -82,6 +82,7 @@ export default function App() {
               <Route path="about" element={<About />} />
               <Route path="gallery" element={<GalleryHome />} />
               <Route path="gallery/:album" element={<GalleryAlbum />} />
+              <Route path="gallery/:album/:subalbum" element={<GalleryAlbum />} />
               <Route path="recipes" element={<RecipesIndex />} />
               <Route path="recipes/:slug" element={<RecipePost />} />
               <Route path="projects" element={<Projects />} />

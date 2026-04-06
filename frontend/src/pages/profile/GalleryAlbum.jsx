@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, Link as RouterLink } from 'react-router-dom'
+import { useParams, Link as RouterLink, useNavigate } from 'react-router-dom'
 import {
   Container, Typography, Box, CircularProgress, Alert,
   Divider, Link, Button, Stack, Tooltip, IconButton,
@@ -11,7 +11,8 @@ import PhotoGrid from '../../components/PhotoGrid.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function GalleryAlbum() {
-  const { username, album } = useParams()
+  const { username, album, subalbum } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const theme = useTheme()
   const isOwner = user?.username?.toLowerCase() === username?.toLowerCase()
@@ -30,45 +31,50 @@ export default function GalleryAlbum() {
     setActiveSubId(null)
     setSubPhotos(null)
     setLoading(true)
+    setError(null)
+
+    // Always fetch the parent album — `album` param is always the parent slug.
     client.get(`/u/${username}/gallery/${album}?filter=all`)
       .then((res) => {
         const d = res.data
         setData(d)
-        // If a default child is configured, select it immediately without navigating away.
-        if (d?.album?.default_child_id && (d?.sub_albums?.length ?? 0) > 0) {
+
+        if (subalbum) {
+          // Find the sub-album whose slug matches the URL param.
+          const sub = (d.sub_albums || []).find((s) => s.slug === subalbum)
+          if (sub) {
+            setActiveSubId(sub.id)
+            setSubLoading(true)
+            client.get(`/u/${username}/gallery/${subalbum}`)
+              .then((r) => setSubPhotos(r.data?.photos || []))
+              .catch(() => setSubPhotos([]))
+              .finally(() => setSubLoading(false))
+          } else {
+            // Sub-album slug not found — fall back to parent view.
+            setActiveSubId(null)
+          }
+        } else {
+          // No subalbum param — check for a configured default child.
           const defaultSub = (d.sub_albums || []).find(
-            (s) => s.id === d.album.default_child_id,
+            (s) => s.id === d.album?.default_child_id,
           )
           if (defaultSub) {
-            setActiveSubId(defaultSub.id)
-            // Fetch that sub-album's photos straight away.
-            client.get(`/u/${username}/gallery/${defaultSub.slug}`)
-              .then((r) => setSubPhotos(r.data.photos || []))
-              .catch(() => setSubPhotos([]))
+            navigate(`/u/${username}/gallery/${album}/${defaultSub.slug}`, { replace: true })
+          } else {
+            setActiveSubId(null)
           }
         }
       })
       .catch(() => setError('Album not found.'))
       .finally(() => setLoading(false))
-  }, [username, album])
+  }, [username, album, subalbum])
 
-  async function selectSub(sub) {
-    if (activeSubId === sub.id) return
-    setActiveSubId(sub.id)
-    setSubLoading(true)
-    try {
-      const res = await client.get(`/u/${username}/gallery/${sub.slug}`)
-      setSubPhotos(res.data.photos || [])
-    } catch {
-      setSubPhotos([])
-    } finally {
-      setSubLoading(false)
-    }
+  function selectSub(sub) {
+    navigate(`/u/${username}/gallery/${album}/${sub.slug}`)
   }
 
   function selectAll() {
-    setActiveSubId(null)
-    setSubPhotos(null)
+    navigate(`/u/${username}/gallery/${album}`)
   }
 
   if (loading) return (
@@ -137,7 +143,7 @@ export default function GalleryAlbum() {
         )}
       </Box>
 
-      {/* Sub-album tabs — inline, no navigation */}
+      {/* Sub-album tabs — navigate to URL on select */}
       {hasSubAlbums && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
           <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'center' }}>
