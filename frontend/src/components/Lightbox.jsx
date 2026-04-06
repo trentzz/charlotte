@@ -38,7 +38,8 @@ export default function Lightbox({ open, photos, index, onClose, onPrev, onNext 
   // Resolve path/url to an absolute URL. Prefer compressed_url when present.
   // The API uses `url`; legacy code used `path`.
   const rawSrc = photo.compressed_url || photo.url || photo.path || ''
-  const src = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
+  const base = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
+  const src = photo.version ? `${base}?v=${photo.version}` : base
 
   return (
     <Modal

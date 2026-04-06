@@ -22,8 +22,8 @@ func (a *App) GalleryHome(w http.ResponseWriter, r *http.Request) {
 
 	viewer := middleware.UserFromContext(r.Context())
 	isOwner := viewer != nil && viewer.ID == profile.ID
-	albums, _ := models.ListTopLevelAlbumsByUser(a.DB, profile.ID, !isOwner)
-	recent, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 12, !isOwner)
+	albums, _ := models.ListTopLevelAlbumsByUser(a.DB, profile.ID, true)
+	recent, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 12, true)
 
 	a.respondJSON(w, http.StatusOK, map[string]any{
 		"albums":        toAlbumList(albums),
@@ -50,7 +50,7 @@ func (a *App) GalleryAlbum(w http.ResponseWriter, r *http.Request) {
 	isOwner := viewer != nil && viewer.ID == profile.ID
 
 	album, err := models.GetAlbumBySlug(a.DB, profile.ID, albumSlug)
-	if err != nil || (!album.Published && !isOwner) {
+	if err != nil || !album.Published {
 		a.respondError(w, http.StatusNotFound, "album not found")
 		return
 	}
@@ -62,15 +62,11 @@ func (a *App) GalleryAlbum(w http.ResponseWriter, r *http.Request) {
 		photos, _ = models.ListPhotosByAlbum(a.DB, album.ID)
 	}
 
-	subAlbums := album.SubAlbums
-	if !isOwner {
-		var published []*models.Album
-		for _, s := range subAlbums {
-			if s.Published {
-				published = append(published, s)
-			}
+	var subAlbums []*models.Album
+	for _, s := range album.SubAlbums {
+		if s.Published {
+			subAlbums = append(subAlbums, s)
 		}
-		subAlbums = published
 	}
 
 	resp := map[string]any{

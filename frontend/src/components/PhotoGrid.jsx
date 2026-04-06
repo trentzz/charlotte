@@ -52,7 +52,8 @@ export default function PhotoGrid({ photos }) {
         >
           {photos.map((photo, i) => {
             const rawSrc = photo.compressed_url || photo.url || photo.path || ''
-            const src = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
+            const base = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
+            const src = photo.version ? `${base}?v=${photo.version}` : base
             return (
               <Box
                 key={photo.id || i}
