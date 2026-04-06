@@ -317,14 +317,15 @@ func (a *App) DashPhotoUpload(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		photoID, err := models.CreatePhoto(a.DB, &models.Photo{
-			UserID:    user.ID,
-			AlbumID:   album.ID,
-			Filename:  result.Filename,
-			Caption:   caption,
-			MIMEType:  result.MIMEType,
-			SizeBytes: result.SizeBytes,
-			Width:     result.Width,
-			Height:    result.Height,
+			UserID:             user.ID,
+			AlbumID:            album.ID,
+			Filename:           result.Filename,
+			Caption:            caption,
+			MIMEType:           result.MIMEType,
+			SizeBytes:          result.SizeBytes,
+			Width:              result.Width,
+			Height:             result.Height,
+			CompressedFilename: result.CompressedFilename,
 		})
 		if err != nil {
 			_ = storage.DeleteUpload(a.DataDir, user.ID, result.Filename)
@@ -392,6 +393,47 @@ func (a *App) DashAlbumSetDefaultChild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// DashPhotoRotate handles PATCH /api/v1/dashboard/gallery/photos/{id}/rotate.
+// Body: {"degrees": 90} for CW, {"degrees": -90} for CCW.
+func (a *App) DashPhotoRotate(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	photoID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		a.respondError(w, http.StatusNotFound, "photo not found")
+		return
+	}
+	photo, err := models.GetPhotoByID(a.DB, photoID)
+	if err != nil || (photo.UserID != user.ID && !user.IsAdmin()) {
+		a.respondError(w, http.StatusNotFound, "photo not found")
+		return
+	}
+
+	var body struct {
+		Degrees int `json:"degrees"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if body.Degrees != 90 && body.Degrees != -90 && body.Degrees != 180 {
+		a.respondError(w, http.StatusBadRequest, "degrees must be 90, -90, or 180")
+		return
+	}
+
+	if err := storage.RotatePhoto(a.DataDir, photo.UserID, photo.Filename, photo.CompressedFilename, body.Degrees); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	newVersion, err := models.IncrementPhotoVersion(a.DB, photoID)
+	if err != nil {
+		// Non-fatal: log and return ok without a version so the frontend still knows rotation succeeded.
+		fmt.Printf("warn: increment photo version for photo %d: %v\n", photoID, err)
+		a.respondJSON(w, http.StatusOK, map[string]any{"ok": true})
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]any{"ok": true, "version": newVersion})
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

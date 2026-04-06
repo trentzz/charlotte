@@ -12,6 +12,8 @@ import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder'
 import LibraryAddIcon from '@mui/icons-material/LibraryAdd'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
+import RotateLeftIcon from '@mui/icons-material/RotateLeft'
+import RotateRightIcon from '@mui/icons-material/RotateRight'
 import Masonry from 'react-masonry-css'
 import client from '../../api/client.js'
 import Lightbox from '../../components/Lightbox.jsx'
@@ -84,9 +86,8 @@ function ExistingPhotoPicker({ open, albumID, alreadyInAlbum, onClose, onAdded }
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 1, mt: 1 }}>
             {allPhotos.map((photo) => {
-              const src = (photo.url || photo.path || '').startsWith('/')
-                ? (photo.url || photo.path)
-                : `/${photo.url || photo.path}`
+              const rawSrc = photo.compressed_url || photo.url || photo.path || ''
+              const src = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
               const inAlbum = alreadyInAlbum.has(photo.id)
               const isSelected = selected.has(photo.id)
               return (
@@ -171,6 +172,7 @@ export default function AlbumView() {
   const [subAlbumDialogOpen, setSubAlbumDialogOpen] = useState(false)
   const [subAlbumTitle, setSubAlbumTitle] = useState('')
   const [subAlbumSaving, setSubAlbumSaving] = useState(false)
+  const [highRes, setHighRes] = useState(false)
   // 'own' = just this album, 'all' = this album + sub-albums, or a sub-album ID (number)
   const [view, setView] = useState('own')
   // Photos for the currently selected sub-album tab
@@ -233,18 +235,25 @@ export default function AlbumView() {
     if (!files.length) return
     setUploading(true)
     setError(null)
+    let failed = 0
     try {
-      const fd = new FormData()
-      fd.append('album_id', id)
       for (const file of files) {
+        const fd = new FormData()
+        fd.append('album_id', id)
         fd.append('photos', file)
+        try {
+          const res = await client.post(`/dashboard/gallery/photos`, fd)
+          const newPhotos = res.data.uploaded || []
+          setPhotos((ps) => [...ps, ...newPhotos])
+          setAllPhotos((ps) => [...ps, ...newPhotos])
+          failed += res.data.failed || 0
+        } catch {
+          failed++
+        }
       }
-      const res = await client.post(`/dashboard/gallery/photos`, fd)
-      const newPhotos = res.data.uploaded || []
-      setPhotos((ps) => [...ps, ...newPhotos])
-      setAllPhotos((ps) => [...ps, ...newPhotos])
-    } catch (err) {
-      setError(err.response?.data?.error || 'Upload failed.')
+      if (failed > 0) {
+        setError(`${failed} file(s) failed to upload.`)
+      }
     } finally {
       setUploading(false)
     }
@@ -329,6 +338,25 @@ export default function AlbumView() {
     }
   }
 
+  async function handleRotate(photoId, degrees) {
+    try {
+      const res = await client.patch(`/dashboard/gallery/photos/${photoId}/rotate`, { degrees })
+      setPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, version: res.version } : p))
+      setAllPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, version: res.version } : p))
+      setSubPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, version: res.version } : p))
+    } catch {
+      setError('Failed to rotate photo.')
+    }
+  }
+
+  // Returns the display src for a photo, preferring compressed unless highRes is active.
+  // Uses photo.version (from server) for cache-busting so it persists across page reloads.
+  const imgSrc = (photo) => {
+    const raw = (!highRes && photo.compressed_url) ? photo.compressed_url : (photo.url || photo.path || '')
+    const base = raw.startsWith('/') ? raw : `/${raw}`
+    return photo.version ? `${base}?v=${photo.version}` : base
+  }
+
   const alreadyInAlbum = new Set(photos.map((p) => p.id))
   const subAlbums = album?.sub_albums || []
   const hasSubAlbums = subAlbums.length > 0
@@ -384,6 +412,15 @@ export default function AlbumView() {
             {uploading ? 'Uploading…' : 'Upload photos'}
             <input type="file" hidden accept="image/*" multiple onChange={handleUpload} />
           </Button>
+          <Tooltip title={highRes ? 'Showing originals — click for compressed' : 'Showing compressed — click for originals'}>
+            <Button
+              size="small"
+              variant={highRes ? 'contained' : 'outlined'}
+              onClick={() => setHighRes((h) => !h)}
+            >
+              {highRes ? 'Original' : 'Compressed'}
+            </Button>
+          </Tooltip>
           <Button
             variant="outlined"
             size="small"
@@ -475,13 +512,11 @@ export default function AlbumView() {
             columnClassName="masonry-column"
           >
             {displayedPhotos.map((photo, i) => {
-              const rawSrc = photo.url || photo.path || ''
-              const src = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
               return (
                 <Box key={photo.id || i} sx={{ position: 'relative', marginBottom: '10px', '&:hover .action-btns': { opacity: 1 } }}>
                   <Box
                     component="img"
-                    src={src}
+                    src={imgSrc(photo)}
                     alt={photo.caption || ''}
                     onClick={() => { setLightboxIndex(i); setLightboxOpen(true) }}
                     sx={{
@@ -504,6 +539,24 @@ export default function AlbumView() {
                       transition: 'opacity 0.15s',
                     }}
                   >
+                    <Tooltip title="Rotate left">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); handleRotate(photo.id, -90) }}
+                        sx={{ bgcolor: 'rgba(0,0,0,0.55)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,80,160,0.8)' } }}
+                      >
+                        <RotateLeftIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Rotate right">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); handleRotate(photo.id, 90) }}
+                        sx={{ bgcolor: 'rgba(0,0,0,0.55)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,80,160,0.8)' } }}
+                      >
+                        <RotateRightIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Remove from album">
                       <IconButton
                         size="small"
@@ -533,7 +586,7 @@ export default function AlbumView() {
 
       <Lightbox
         open={lightboxOpen}
-        photos={displayedPhotos}
+        photos={highRes ? displayedPhotos.map((p) => ({ ...p, compressed_url: '' })) : displayedPhotos}
         index={lightboxIndex}
         onClose={() => setLightboxOpen(false)}
         onPrev={() => setLightboxIndex((i) => (i - 1 + displayedPhotos.length) % displayedPhotos.length)}

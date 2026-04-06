@@ -51,7 +51,7 @@ export default function PhotoGrid({ photos }) {
           columnClassName="masonry-column"
         >
           {photos.map((photo, i) => {
-            const rawSrc = photo.url || photo.path || ''
+            const rawSrc = photo.compressed_url || photo.url || photo.path || ''
             const src = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
             return (
               <Box

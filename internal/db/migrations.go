@@ -337,6 +337,12 @@ var migrations = []string{
 
 	// 34: per-user nav configuration stored as JSON
 	`ALTER TABLE users ADD COLUMN nav_config TEXT NOT NULL DEFAULT '{}'`,
+
+	// 35: compressed photo filename
+	`ALTER TABLE photos ADD COLUMN compressed_filename TEXT NOT NULL DEFAULT ''`,
+
+	// 36: photo version for cache-busting
+	`ALTER TABLE photos ADD COLUMN version INTEGER NOT NULL DEFAULT 0`,
 }
 
 // Migrate runs any migrations that have not yet been applied, in order.

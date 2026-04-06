@@ -35,8 +35,9 @@ export default function Lightbox({ open, photos, index, onClose, onPrev, onNext 
   const photo = photos[index]
   if (!photo) return null
 
-  // Resolve path/url to an absolute URL. The API uses `url`; legacy code used `path`.
-  const rawSrc = photo.url || photo.path || ''
+  // Resolve path/url to an absolute URL. Prefer compressed_url when present.
+  // The API uses `url`; legacy code used `path`.
+  const rawSrc = photo.compressed_url || photo.url || photo.path || ''
   const src = rawSrc.startsWith('/') ? rawSrc : `/${rawSrc}`
 
   return (

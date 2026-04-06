@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -143,26 +144,34 @@ func toPostList(posts []*models.Post) []postJSON {
 }
 
 type photoJSON struct {
-	ID        int64  `json:"id"`
-	AlbumID   int64  `json:"album_id"`
-	URL       string `json:"url"`
-	Caption   string `json:"caption"`
-	MIMEType  string `json:"mime_type"`
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
-	CreatedAt string `json:"created_at"`
+	ID            int64  `json:"id"`
+	AlbumID       int64  `json:"album_id"`
+	URL           string `json:"url"`
+	CompressedURL string `json:"compressed_url"`
+	Caption       string `json:"caption"`
+	MIMEType      string `json:"mime_type"`
+	Width         int    `json:"width"`
+	Height        int    `json:"height"`
+	CreatedAt     string `json:"created_at"`
+	Version       int64  `json:"version"`
 }
 
 func toPhotoJSON(p *models.Photo) photoJSON {
+	var compressedURL string
+	if p.CompressedFilename != "" {
+		compressedURL = fmt.Sprintf("/uploads/%d/%s", p.UserID, p.CompressedFilename)
+	}
 	return photoJSON{
-		ID:        p.ID,
-		AlbumID:   p.AlbumID,
-		URL:       photoURL(p.UserID, p.Filename),
-		Caption:   p.Caption,
-		MIMEType:  p.MIMEType,
-		Width:     p.Width,
-		Height:    p.Height,
-		CreatedAt: p.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		ID:            p.ID,
+		AlbumID:       p.AlbumID,
+		URL:           photoURL(p.UserID, p.Filename),
+		CompressedURL: compressedURL,
+		Caption:       p.Caption,
+		MIMEType:      p.MIMEType,
+		Width:         p.Width,
+		Height:        p.Height,
+		CreatedAt:     p.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		Version:       p.Version,
 	}
 }
 

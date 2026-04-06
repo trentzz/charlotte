@@ -17,6 +17,23 @@ const (
 	csrfCtxKey ctxKey = "csrf"
 )
 
+// csrfCookieMaxAge is the lifetime of the CSRF cookie in seconds (30 days).
+// Matches the session duration so the CSRF token survives browser restarts.
+const csrfCookieMaxAge = 30 * 24 * 60 * 60
+
+func setCSRFCookieValue(w http.ResponseWriter, token string) {
+	secure := os.Getenv("CHARLOTTE_SECURE_COOKIES") == "true"
+	http.SetCookie(w, &http.Cookie{
+		Name:     csrfCookieName,
+		Value:    token,
+		Path:     "/",
+		MaxAge:   csrfCookieMaxAge,
+		HttpOnly: false, // JS reads this to attach it as a request header
+		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+	})
+}
+
 // CSRFMiddleware generates a per-session CSRF token (stored in a cookie),
 // injects it into the request context, and validates it on mutating requests.
 func CSRFMiddleware(next http.Handler) http.Handler {
@@ -24,15 +41,7 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 		token := csrfTokenFromRequest(r)
 		if token == "" {
 			token = generateCSRFToken()
-			secure := os.Getenv("CHARLOTTE_SECURE_COOKIES") == "true"
-			http.SetCookie(w, &http.Cookie{
-				Name:     csrfCookieName,
-				Value:    token,
-				Path:     "/",
-				HttpOnly: false, // JS does not need it; readable by forms via the cookie
-				SameSite: http.SameSiteLaxMode,
-				Secure:   secure,
-			})
+			setCSRFCookieValue(w, token)
 		}
 
 		ctx := context.WithValue(r.Context(), csrfCtxKey, token)
@@ -65,15 +74,7 @@ func CSRFToken(r *http.Request) string {
 // Call this after login to bind a fresh token to the new session.
 func SetCSRFCookie(w http.ResponseWriter) string {
 	token := generateCSRFToken()
-	secure := os.Getenv("CHARLOTTE_SECURE_COOKIES") == "true"
-	http.SetCookie(w, &http.Cookie{
-		Name:     csrfCookieName,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: false,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   secure,
-	})
+	setCSRFCookieValue(w, token)
 	return token
 }
 

@@ -7,8 +7,8 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
-	_ "golang.org/x/image/webp"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -17,11 +17,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/disintegration/imaging"
+	_ "golang.org/x/image/webp"
 )
 
 const (
 	// MaxUploadBytes is the maximum allowed file size for image uploads (30 MB).
 	MaxUploadBytes = 30 << 20
+
+	// CompressMaxEdge is the maximum pixel length of the long edge for compressed photos.
+	CompressMaxEdge = 1920
+
+	// CompressQuality is the JPEG quality used when saving compressed photos.
+	CompressQuality = 80
 )
 
 // allowedMIMETypes is the set of MIME types accepted for photo uploads.
@@ -34,11 +42,12 @@ var allowedMIMETypes = map[string]bool{
 
 // UploadResult contains metadata about a successfully saved upload.
 type UploadResult struct {
-	Filename  string
-	MIMEType  string
-	SizeBytes int64
-	Width     int
-	Height    int
+	Filename           string
+	MIMEType           string
+	SizeBytes          int64
+	Width              int
+	Height             int
+	CompressedFilename string
 }
 
 // SaveUpload validates fh and writes it to dataDir/uploads/{userID}/{filename}.
@@ -104,24 +113,109 @@ func SaveUpload(dataDir string, userID int64, fh *multipart.FileHeader) (*Upload
 		return nil, fmt.Errorf("write upload: %w", err)
 	}
 
-	return &UploadResult{
+	result := &UploadResult{
 		Filename:  filename,
 		MIMEType:  mimeType,
 		SizeBytes: written,
 		Width:     img.Width,
 		Height:    img.Height,
-	}, nil
+	}
+
+	// Compress non-GIF uploads. Failures are non-fatal.
+	if mimeType != "image/gif" {
+		cf, err := CompressPhoto(dataDir, userID, filename)
+		if err != nil {
+			log.Printf("compress upload %s: %v", filename, err)
+		} else {
+			result.CompressedFilename = cf
+		}
+	}
+
+	return result, nil
 }
 
 // DeleteUpload removes a stored file from dataDir/uploads/{userID}/{filename}.
+// It also removes the compressed version if one exists.
 func DeleteUpload(dataDir string, userID int64, filename string) error {
 	// Validate filename to prevent path traversal.
 	if strings.Contains(filename, "/") || strings.Contains(filename, "..") {
 		return fmt.Errorf("invalid filename: %s", filename)
 	}
-	path := filepath.Join(dataDir, "uploads", strconv.FormatInt(userID, 10), filename)
+	dir := filepath.Join(dataDir, "uploads", strconv.FormatInt(userID, 10))
+	path := filepath.Join(dir, filename)
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("delete upload: %w", err)
+	}
+	// Remove the compressed version; ignore not-found.
+	cf := compressedFilename(filename)
+	_ = os.Remove(filepath.Join(dir, cf))
+	return nil
+}
+
+// compressedFilename returns the filename used for the compressed JPEG copy.
+// e.g. "abc123.png" -> "abc123_c.jpg"
+func compressedFilename(original string) string {
+	ext := filepath.Ext(original)
+	base := strings.TrimSuffix(original, ext)
+	return base + "_c.jpg"
+}
+
+// CompressPhoto creates a compressed JPEG version of an already-saved original.
+// It applies EXIF auto-orientation so the output is always upright.
+func CompressPhoto(dataDir string, userID int64, originalFilename string) (string, error) {
+	if strings.HasSuffix(strings.ToLower(originalFilename), ".gif") {
+		return "", nil
+	}
+	origPath := filepath.Join(dataDir, "uploads", strconv.FormatInt(userID, 10), originalFilename)
+
+	img, err := imaging.Open(origPath, imaging.AutoOrientation(true))
+	if err != nil {
+		return "", fmt.Errorf("open image: %w", err)
+	}
+
+	// Resize to fit within CompressMaxEdge x CompressMaxEdge, preserving aspect ratio.
+	b := img.Bounds()
+	if b.Dx() > CompressMaxEdge || b.Dy() > CompressMaxEdge {
+		img = imaging.Fit(img, CompressMaxEdge, CompressMaxEdge, imaging.Lanczos)
+	}
+
+	cf := compressedFilename(originalFilename)
+	destPath := filepath.Join(dataDir, "uploads", strconv.FormatInt(userID, 10), cf)
+	if err := imaging.Save(img, destPath, imaging.JPEGQuality(CompressQuality)); err != nil {
+		return "", fmt.Errorf("save compressed: %w", err)
+	}
+	return cf, nil
+}
+
+// RotatePhoto rotates both the original and compressed files by the given degrees (90 or -90).
+// Positive degrees = clockwise, negative = counter-clockwise.
+func RotatePhoto(dataDir string, userID int64, originalFilename, compressedFilename string, degrees int) error {
+	dir := filepath.Join(dataDir, "uploads", strconv.FormatInt(userID, 10))
+	rotate := func(path string) error {
+		img, err := imaging.Open(path, imaging.AutoOrientation(true))
+		if err != nil {
+			return err
+		}
+		switch degrees {
+		case 90:
+			img = imaging.Rotate270(img) // Rotate270 = 90° CW
+		case -90:
+			img = imaging.Rotate90(img) // Rotate90 = 90° CCW
+		case 180:
+			img = imaging.Rotate180(img)
+		default:
+			return fmt.Errorf("unsupported rotation: %d", degrees)
+		}
+		return imaging.Save(img, path, imaging.JPEGQuality(CompressQuality))
+	}
+
+	if err := rotate(filepath.Join(dir, originalFilename)); err != nil {
+		return fmt.Errorf("rotate original: %w", err)
+	}
+	if compressedFilename != "" {
+		if err := rotate(filepath.Join(dir, compressedFilename)); err != nil {
+			return fmt.Errorf("rotate compressed: %w", err)
+		}
 	}
 	return nil
 }

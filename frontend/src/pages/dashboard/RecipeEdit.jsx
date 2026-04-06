@@ -608,13 +608,11 @@ export default function RecipeEdit() {
     try {
       const fd = new FormData()
       files.forEach((f) => fd.append('photos', f))
-      const res = await client.post(`/dashboard/recipes/${id}/photos`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      const uploaded = res.data?.data?.uploaded || []
+      const res = await client.post(`/dashboard/recipes/${id}/photos`, fd)
+      const uploaded = res.data?.uploaded || []
       setPhotos((prev) => [...prev, ...uploaded])
-      if (res.data?.data?.failed > 0) {
-        setPhotoError(`${res.data.data.failed} file(s) failed to upload.`)
+      if (res.data?.failed > 0) {
+        setPhotoError(`${res.data.failed} file(s) failed to upload.`)
       }
     } catch {
       setPhotoError('Upload failed.')

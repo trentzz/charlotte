@@ -48,6 +48,9 @@ Charlotte is a multi-user personal website platform. Each user gets a public sub
 - **Edit shortcut**: when the logged-in user views their own public gallery home or album page, a small edit icon button links to the dashboard gallery.
 - **Album thumbnail fallback**: if an album has no explicit cover photo set, the public gallery home page shows the first photo in the album as the thumbnail instead of a blank card. The API returns a `cover_url` field on each album that resolves this automatically.
 - **Centred album titles**: on the public gallery home page, each album card shows the cover image filling the card, with the album title and photo count centred below. Cards have no border or elevation and blend into the background.
+- **EXIF auto-orientation**: compressed photos are always saved upright. The `imaging` library reads and strips the EXIF orientation tag during compression so rotated originals appear correctly in all browsers without client-side workarounds.
+- **Photo rotation**: `PATCH /api/v1/dashboard/gallery/photos/{id}/rotate` with body `{"degrees": 90}` (CW), `{"degrees": -90}` (CCW), or `{"degrees": 180}` rotates both the original and compressed file in-place. Only the photo's owner (or an admin) may rotate it.
+- **Compression quality**: JPEG quality for compressed photos raised from 75 to 80.
 
 ### Recipes
 

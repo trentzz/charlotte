@@ -15,6 +15,7 @@ import (
 	"github.com/trentzz/charlotte/internal/api"
 	"github.com/trentzz/charlotte/internal/middleware"
 	"github.com/trentzz/charlotte/internal/models"
+	"github.com/trentzz/charlotte/internal/storage"
 )
 
 type config struct {
@@ -49,6 +50,27 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
+// requestLogger logs each request's method, path, and response status.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func requestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec := &statusRecorder{ResponseWriter: w, status: 200}
+		next.ServeHTTP(rec, r)
+		if r.URL.Path != "/healthz" {
+			log.Printf("%s %s %d", r.Method, r.URL.Path, rec.status)
+		}
+	})
+}
+
 func main() {
 	cfg := loadConfig()
 
@@ -58,6 +80,28 @@ func main() {
 		log.Fatalf("open database: %v", err)
 	}
 	defer db.Close()
+
+	// Compress any existing photos that pre-date the compression feature.
+	rows, err := db.Query(
+		`SELECT id, user_id, filename FROM photos WHERE compressed_filename = '' AND mime_type != 'image/gif'`,
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var id, userID int64
+			var filename string
+			if err := rows.Scan(&id, &userID, &filename); err != nil {
+				continue
+			}
+			cf, err := storage.CompressPhoto(cfg.DataDir, userID, filename)
+			if err != nil {
+				log.Printf("compress photo %d: %v", id, err)
+				continue
+			}
+			_, _ = db.Exec(`UPDATE photos SET compressed_filename = ? WHERE id = ?`, cf, id)
+			log.Printf("compressed photo %d -> %s", id, cf)
+		}
+	}
 
 	app := &api.App{
 		DB:      db,
@@ -80,6 +124,9 @@ func main() {
 
 	// ── Static SPA assets ────────────────────────────────────────────────────────
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(cfg.BaseDir+"/frontend/dist/assets"))))
+	mux.HandleFunc("GET /favicon.svg", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, cfg.BaseDir+"/frontend/dist/favicon.svg")
+	})
 
 	// ── Uploads ──────────────────────────────────────────────────────────────────
 	mux.HandleFunc("GET /uploads/{userID}/{filename}", app.ServeUpload)
@@ -153,6 +200,7 @@ func main() {
 	mux.Handle("DELETE /api/v1/dashboard/gallery/albums/{id}/photos/{photoID}", authed(csrf(http.HandlerFunc(app.DashAlbumRemovePhoto))))
 	mux.Handle("GET /api/v1/dashboard/gallery/photos", authed(http.HandlerFunc(app.DashUserPhotos)))
 	mux.Handle("DELETE /api/v1/dashboard/gallery/photos/{id}", authed(csrf(http.HandlerFunc(app.DashPhotoDelete))))
+	mux.Handle("PATCH /api/v1/dashboard/gallery/photos/{id}/rotate", authed(csrf(http.HandlerFunc(app.DashPhotoRotate))))
 
 	// Dashboard — recipes.
 	mux.Handle("GET /api/v1/dashboard/recipes", authed(http.HandlerFunc(app.DashRecipeList)))
@@ -229,7 +277,7 @@ func main() {
 	// This avoids nested MaxBytesReader calls where the outer limit would win.
 	const uploadLimit = 200 * 1024 * 1024
 	const defaultLimit = 4 * 1024 * 1024
-	handler := securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := requestLogger(securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		limit := int64(defaultLimit)
 		p := r.URL.Path
 		if p == "/api/v1/dashboard/avatar" ||
@@ -240,14 +288,17 @@ func main() {
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		mux.ServeHTTP(w, r)
-	}))
+	})))
 
 	srv := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      handler,
-		ReadTimeout:  60 * time.Second,
-		WriteTimeout: 120 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:              ":" + cfg.Port,
+		Handler:           handler,
+		ReadHeaderTimeout: 30 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		// ReadTimeout is intentionally omitted (zero = unlimited) so large
+		// file uploads are not killed mid-transfer. The MaxBytesReader in the
+		// handler enforces the body size limit instead.
 	}
 
 	log.Printf("Charlotte starting on :%s (data: %s)", cfg.Port, cfg.DataDir)

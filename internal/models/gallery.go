@@ -28,16 +28,18 @@ type Album struct {
 
 // Photo represents a single uploaded image.
 type Photo struct {
-	ID        int64
-	UserID    int64
-	AlbumID   int64
-	Filename  string
-	Caption   string
-	MIMEType  string
-	SizeBytes int64
-	Width     int
-	Height    int
-	CreatedAt time.Time
+	ID                 int64
+	UserID             int64
+	AlbumID            int64
+	Filename           string
+	Caption            string
+	MIMEType           string
+	SizeBytes          int64
+	Width              int
+	Height             int
+	CreatedAt          time.Time
+	CompressedFilename string
+	Version            int64
 }
 
 func scanPhoto(row interface{ Scan(...any) error }) (*Photo, error) {
@@ -45,7 +47,7 @@ func scanPhoto(row interface{ Scan(...any) error }) (*Photo, error) {
 	var createdAt int64
 	err := row.Scan(
 		&p.ID, &p.UserID, &p.AlbumID, &p.Filename, &p.Caption,
-		&p.MIMEType, &p.SizeBytes, &p.Width, &p.Height, &createdAt,
+		&p.MIMEType, &p.SizeBytes, &p.Width, &p.Height, &createdAt, &p.CompressedFilename, &p.Version,
 	)
 	if err != nil {
 		return nil, err
@@ -55,7 +57,7 @@ func scanPhoto(row interface{ Scan(...any) error }) (*Photo, error) {
 }
 
 const photoSelect = `SELECT id, user_id, album_id, filename, caption,
-	mime_type, size_bytes, width, height, created_at FROM photos`
+	mime_type, size_bytes, width, height, created_at, compressed_filename, version FROM photos`
 
 // CreateAlbum inserts a new album and returns its ID.
 func CreateAlbum(db *sql.DB, a *Album) (int64, error) {
@@ -220,7 +222,7 @@ func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWh
 func GetFirstPhotoInAlbum(db *sql.DB, albumID int64) (*Photo, error) {
 	return scanPhoto(db.QueryRow(
 		`SELECT p.id, p.user_id, p.album_id, p.filename, p.caption,
-		        p.mime_type, p.size_bytes, p.width, p.height, p.created_at
+		        p.mime_type, p.size_bytes, p.width, p.height, p.created_at, p.compressed_filename, p.version
 		 FROM photos p
 		 JOIN album_photos ap ON ap.photo_id = p.id
 		 WHERE ap.album_id = ?
@@ -353,10 +355,10 @@ func SetDefaultAlbum(db *sql.DB, albumID, userID int64) error {
 // CreatePhoto inserts a new photo record.
 func CreatePhoto(db *sql.DB, p *Photo) (int64, error) {
 	res, err := db.Exec(
-		`INSERT INTO photos (user_id, album_id, filename, caption, mime_type, size_bytes, width, height)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO photos (user_id, album_id, filename, caption, mime_type, size_bytes, width, height, compressed_filename)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.UserID, p.AlbumID, p.Filename, p.Caption,
-		p.MIMEType, p.SizeBytes, p.Width, p.Height,
+		p.MIMEType, p.SizeBytes, p.Width, p.Height, p.CompressedFilename,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("create photo: %w", err)
@@ -372,7 +374,7 @@ func GetPhotoByID(db *sql.DB, id int64) (*Photo, error) {
 // ListPhotosByAlbum returns photos in an album via the album_photos join table.
 func ListPhotosByAlbum(db *sql.DB, albumID int64) ([]*Photo, error) {
 	q := `SELECT p.id, p.user_id, p.album_id, p.filename, p.caption,
-		        p.mime_type, p.size_bytes, p.width, p.height, p.created_at
+		        p.mime_type, p.size_bytes, p.width, p.height, p.created_at, p.compressed_filename, p.version
 		  FROM photos p
 		  JOIN album_photos ap ON ap.photo_id = p.id
 		  WHERE ap.album_id = ?
@@ -388,7 +390,7 @@ func ListPhotosByAlbum(db *sql.DB, albumID int64) ([]*Photo, error) {
 // ListAllPhotosByAlbum returns photos from this album and all its sub-albums.
 func ListAllPhotosByAlbum(db *sql.DB, albumID int64) ([]*Photo, error) {
 	q := `SELECT DISTINCT p.id, p.user_id, p.album_id, p.filename, p.caption,
-		        p.mime_type, p.size_bytes, p.width, p.height, p.created_at
+		        p.mime_type, p.size_bytes, p.width, p.height, p.created_at, p.compressed_filename, p.version
 		  FROM photos p
 		  JOIN album_photos ap ON ap.photo_id = p.id
 		  WHERE ap.album_id = ? OR ap.album_id IN (
@@ -575,4 +577,15 @@ func ListAllPhotos(db *sql.DB) ([]*Photo, error) {
 	}
 	defer rows.Close()
 	return scanPhotos(rows)
+}
+
+// IncrementPhotoVersion increments the version counter for a photo and returns the new value.
+func IncrementPhotoVersion(db *sql.DB, photoID int64) (int64, error) {
+	_, err := db.Exec(`UPDATE photos SET version = version + 1 WHERE id = ?`, photoID)
+	if err != nil {
+		return 0, fmt.Errorf("increment photo version: %w", err)
+	}
+	var v int64
+	err = db.QueryRow(`SELECT version FROM photos WHERE id = ?`, photoID).Scan(&v)
+	return v, err
 }
