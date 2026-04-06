@@ -19,7 +19,9 @@ import client from '../../api/client.js'
 import Lightbox from '../../components/Lightbox.jsx'
 
 const breakpointColumns = {
-  default: 3,
+  default: 5,
+  1400: 4,
+  1100: 3,
   900: 2,
   600: 1,
 }
@@ -173,6 +175,7 @@ export default function AlbumView() {
   const [subAlbumTitle, setSubAlbumTitle] = useState('')
   const [subAlbumSaving, setSubAlbumSaving] = useState(false)
   const [highRes, setHighRes] = useState(false)
+  const [coverPhotoId, setCoverPhotoId] = useState(null)
   // 'own' = just this album, 'all' = this album + sub-albums, or a sub-album ID (number)
   const [view, setView] = useState('own')
   // Photos for the currently selected sub-album tab
@@ -190,6 +193,7 @@ export default function AlbumView() {
       const res = await client.get(`/dashboard/gallery/albums/${id}`)
       const a = res.data.album
       setAlbum(a)
+      setCoverPhotoId(a?.cover_photo?.id ?? null)
       setPhotos(res.data.photos || [])
       setAllPhotos(res.data.all_photos || [])
       // If this is a sub-album, fetch the parent for the breadcrumb.
@@ -335,6 +339,15 @@ export default function AlbumView() {
       setError('Failed to remove photo from album.')
     } finally {
       setRemoving(false)
+    }
+  }
+
+  async function handleSetCover(photoId) {
+    try {
+      await client.put(`/dashboard/gallery/albums/${id}/cover`, { photo_id: photoId })
+      setCoverPhotoId(photoId)
+    } catch {
+      setError('Failed to set cover photo.')
     }
   }
 
@@ -527,6 +540,28 @@ export default function AlbumView() {
                       cursor: 'pointer',
                     }}
                   />
+                  {/* Cover badge — always visible when this photo is the cover */}
+                  {photo.id === coverPhotoId && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: 6,
+                        left: 6,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        bgcolor: 'rgba(0,0,0,0.65)',
+                        color: '#ffd700',
+                        px: 0.75,
+                        py: 0.25,
+                        borderRadius: 1,
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <StarIcon sx={{ fontSize: 14 }} />
+                      <Typography variant="caption" sx={{ fontSize: 11, lineHeight: 1, color: '#ffd700' }}>Cover</Typography>
+                    </Box>
+                  )}
                   <Box
                     className="action-btns"
                     sx={{
@@ -539,6 +574,21 @@ export default function AlbumView() {
                       transition: 'opacity 0.15s',
                     }}
                   >
+                    <Tooltip title={photo.id === coverPhotoId ? 'Current cover' : 'Set as cover'}>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); handleSetCover(photo.id) }}
+                        sx={{
+                          bgcolor: photo.id === coverPhotoId ? 'rgba(180,140,0,0.75)' : 'rgba(0,0,0,0.55)',
+                          color: photo.id === coverPhotoId ? '#ffd700' : '#fff',
+                          '&:hover': { bgcolor: 'rgba(180,140,0,0.85)', color: '#ffd700' },
+                        }}
+                      >
+                        {photo.id === coverPhotoId
+                          ? <StarIcon fontSize="small" />
+                          : <StarBorderIcon fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Rotate left">
                       <IconButton
                         size="small"

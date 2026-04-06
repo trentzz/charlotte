@@ -362,7 +362,7 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
         </AppBar>
 
         {/* Two-column body */}
-        <Box sx={{ flexGrow: 1, maxWidth: 1200, mx: 'auto', width: '100%', px: { xs: 2, md: 4 } }}>
+        <Box sx={{ flexGrow: 1, maxWidth: 1600, mx: 'auto', width: '100%', px: { xs: 2, md: 4 } }}>
           {isMobile ? (
             // Mobile: show a select for settings navigation above content.
             <Box sx={{ pt: 2, pb: 1 }}>
@@ -474,7 +474,7 @@ function SettingsLayoutInner({ user, navData, reloadNavData }) {
                 minWidth: 0,
                 pt: 4,
                 pl: isMobile ? 0 : 4,
-                maxWidth: 860,
+                maxWidth: 'none',
               }}
             >
               <Outlet />
