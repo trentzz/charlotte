@@ -437,7 +437,7 @@ function ProfileLayoutInner({ username, profile, navData }) {
         </AppBar>
 
         <Box component="main" sx={{ flexGrow: 1 }}>
-          <Box sx={{ maxWidth: '70%', mx: 'auto', px: { xs: 2, md: 2 }, width: '100%' }}>
+          <Box sx={{ maxWidth: { xs: '90%', md: '60%' }, mx: 'auto', px: { xs: 1, md: 2 }, width: '100%' }}>
             <Outlet context={{ profile, navData, username }} />
           </Box>
         </Box>
