@@ -23,7 +23,7 @@ func (a *App) GalleryHome(w http.ResponseWriter, r *http.Request) {
 	viewer := middleware.UserFromContext(r.Context())
 	isOwner := viewer != nil && viewer.ID == profile.ID
 	albums, _ := models.ListTopLevelAlbumsByUser(a.DB, profile.ID, !isOwner)
-	recent, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 12)
+	recent, _ := models.ListRecentPhotosByUser(a.DB, profile.ID, 12, !isOwner)
 
 	a.respondJSON(w, http.StatusOK, map[string]any{
 		"albums":        toAlbumList(albums),
@@ -62,11 +62,22 @@ func (a *App) GalleryAlbum(w http.ResponseWriter, r *http.Request) {
 		photos, _ = models.ListPhotosByAlbum(a.DB, album.ID)
 	}
 
+	subAlbums := album.SubAlbums
+	if !isOwner {
+		var published []*models.Album
+		for _, s := range subAlbums {
+			if s.Published {
+				published = append(published, s)
+			}
+		}
+		subAlbums = published
+	}
+
 	resp := map[string]any{
 		"album":      toAlbumJSON(album),
 		"photos":     toPhotoList(photos),
 		"is_owner":   isOwner,
-		"sub_albums": toAlbumList(album.SubAlbums),
+		"sub_albums": toAlbumList(subAlbums),
 	}
 
 	// If this is a sub-album, include the parent album so the frontend can

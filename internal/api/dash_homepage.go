@@ -22,7 +22,7 @@ func (a *App) DashHomepage(w http.ResponseWriter, r *http.Request) {
 
 	// Load available content for the picker.
 	posts, _ := models.ListPostsByUser(a.DB, user.ID, false)
-	photos, _ := models.ListRecentPhotosByUser(a.DB, user.ID, 50)
+	photos, _ := models.ListRecentPhotosByUser(a.DB, user.ID, 50, false)
 	albums, _ := models.ListAlbumsByUser(a.DB, user.ID, false)
 	recipes, _ := models.ListRecipesByUser(a.DB, user.ID, false)
 	projs, _ := models.ListProjectsByUser(a.DB, user.ID, false)

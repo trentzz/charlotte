@@ -37,7 +37,7 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if profile.FeatureGallery {
-		photos, err := models.ListRecentPhotosByUser(a.DB, profile.ID, 50)
+		photos, err := models.ListRecentPhotosByUser(a.DB, profile.ID, 50, !isOwner)
 		if err != nil {
 			log.Printf("profile: list photos for user %d: %v", profile.ID, err)
 			photos = nil

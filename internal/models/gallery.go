@@ -485,10 +485,14 @@ func ListPhotoIDsInAlbum(db *sql.DB, albumID int64) (map[int64]bool, error) {
 }
 
 // ListRecentPhotosByUser returns the N most recent photos for a user.
-func ListRecentPhotosByUser(db *sql.DB, userID int64, limit int) ([]*Photo, error) {
-	rows, err := db.Query(
-		photoSelect+` WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`, userID, limit,
-	)
+// Pass publishedOnly=true for the public gallery view to hide photos in unpublished albums.
+func ListRecentPhotosByUser(db *sql.DB, userID int64, limit int, publishedOnly bool) ([]*Photo, error) {
+	q := photoSelect + ` JOIN gallery_albums ga ON ga.id = p.album_id WHERE p.user_id = ?`
+	if publishedOnly {
+		q += ` AND ga.published = 1`
+	}
+	q += ` ORDER BY p.created_at DESC LIMIT ?`
+	rows, err := db.Query(q, userID, limit)
 	if err != nil {
 		return nil, err
 	}
