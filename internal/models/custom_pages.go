@@ -7,38 +7,44 @@ import (
 
 // CustomPage represents a user-created custom page.
 type CustomPage struct {
-	ID          int64
-	UserID      int64
-	Kind        string
-	Format      string
-	Slug        string
-	Title       string
-	Description string
-	Body        string
-	DataJSON    string
-	Published   bool
-	NavPinned   bool
-	SortOrder   int
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID           int64
+	UserID       int64
+	Kind         string
+	Format       string
+	Slug         string
+	Title        string
+	Description  string
+	Body         string
+	DataJSON     string
+	Published    bool
+	NavPinned    bool
+	SortOrder    int
+	ThemeJSON    string
+	ThemeEnabled bool
+	Theme        UserTheme
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
-const customPageSelect = `SELECT id, user_id, kind, format, slug, title, description, body, data_json, published, nav_pinned, sort_order, created_at, updated_at FROM custom_pages`
+const customPageSelect = `SELECT id, user_id, kind, format, slug, title, description, body, data_json, published, nav_pinned, sort_order, created_at, updated_at, theme_json, theme_enabled FROM custom_pages`
 
 func scanCustomPage(row interface{ Scan(...any) error }) (*CustomPage, error) {
 	p := &CustomPage{}
-	var pub, navPinned int
+	var pub, navPinned, themeEnabled int
 	var cat, uat int64
+	var themeJSON string
 	err := row.Scan(
 		&p.ID, &p.UserID, &p.Kind, &p.Format, &p.Slug,
 		&p.Title, &p.Description, &p.Body, &p.DataJSON,
-		&pub, &navPinned, &p.SortOrder, &cat, &uat,
+		&pub, &navPinned, &p.SortOrder, &cat, &uat, &themeJSON, &themeEnabled,
 	)
 	if err != nil {
 		return nil, err
 	}
 	p.Published = pub == 1
 	p.NavPinned = navPinned == 1
+	p.ThemeEnabled = themeEnabled == 1
+	p.Theme = UnmarshalTheme(themeJSON)
 	p.CreatedAt = time.Unix(cat, 0)
 	p.UpdatedAt = time.Unix(uat, 0)
 	return p, nil

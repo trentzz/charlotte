@@ -17,6 +17,7 @@ import RotateRightIcon from '@mui/icons-material/RotateRight'
 import Masonry from 'react-masonry-css'
 import client from '../../api/client.js'
 import Lightbox from '../../components/Lightbox.jsx'
+import AppearanceSection from '../../components/AppearanceSection.jsx'
 
 const breakpointColumns = {
   default: 5,
@@ -159,6 +160,8 @@ function ExistingPhotoPicker({ open, albumID, alreadyInAlbum, onClose, onAdded }
 export default function AlbumView() {
   const { id } = useParams()
   const [album, setAlbum] = useState(null)
+  const [albumThemeEnabled, setAlbumThemeEnabled] = useState(false)
+  const [albumTheme, setAlbumTheme] = useState(null)
   const [photos, setPhotos] = useState([])
   const [allPhotos, setAllPhotos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -194,6 +197,8 @@ export default function AlbumView() {
       const a = res.data.album
       setAlbum(a)
       setCoverPhotoId(a?.cover_photo?.id ?? null)
+      setAlbumThemeEnabled(Boolean(a?.theme_enabled))
+      setAlbumTheme(a?.theme || null)
       setPhotos(res.data.photos || [])
       setAllPhotos(res.data.all_photos || [])
       // If this is a sub-album, fetch the parent for the breadcrumb.
@@ -711,6 +716,15 @@ export default function AlbumView() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {album && (
+        <AppearanceSection
+          contentType="albums"
+          contentId={Number(id)}
+          initialEnabled={albumThemeEnabled}
+          initialTheme={albumTheme}
+        />
+      )}
     </Box>
   )
 }

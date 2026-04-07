@@ -209,6 +209,34 @@ func (a *App) DashBlogImageUpload(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// DashBlogTheme handles PATCH /api/v1/dashboard/blog/{id}/theme.
+func (a *App) DashBlogTheme(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	post, ok := a.getOwnedPost(w, r, user)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		Enabled bool             `json:"enabled"`
+		Theme   models.UserTheme `json:"theme"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	theme, err := validateAndClampTheme(body.Theme)
+	if err != nil {
+		a.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := models.UpdateContentTheme(a.DB, "blog_posts", post.ID, theme, body.Enabled); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]any{"enabled": body.Enabled, "theme": theme})
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func (a *App) getOwnedPost(w http.ResponseWriter, r *http.Request, user *models.User) (*models.Post, bool) {

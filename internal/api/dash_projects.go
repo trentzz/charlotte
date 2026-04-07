@@ -186,6 +186,34 @@ func (a *App) DashProjectDelete(w http.ResponseWriter, r *http.Request) {
 	a.respondJSON(w, http.StatusOK, map[string]string{"message": "project deleted"})
 }
 
+// DashProjectTheme handles PATCH /api/v1/dashboard/projects/{id}/theme.
+func (a *App) DashProjectTheme(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	project, ok := a.getOwnedProject(w, r, user)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		Enabled bool             `json:"enabled"`
+		Theme   models.UserTheme `json:"theme"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	theme, err := validateAndClampTheme(body.Theme)
+	if err != nil {
+		a.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := models.UpdateContentTheme(a.DB, "projects", project.ID, theme, body.Enabled); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]any{"enabled": body.Enabled, "theme": theme})
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func (a *App) getOwnedProject(w http.ResponseWriter, r *http.Request, user *models.User) (*models.Project, bool) {

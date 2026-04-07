@@ -10,6 +10,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import client from '../../api/client.js'
 import GalleryPhotoPicker from '../../components/GalleryPhotoPicker.jsx'
+import AppearanceSection from '../../components/AppearanceSection.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 // Lazy-load react-quill to avoid SSR issues.
@@ -49,6 +50,8 @@ export default function BlogEdit() {
   })
   const [slug, setSlug] = useState('')
   const [tagInput, setTagInput] = useState('')
+  const [themeEnabled, setThemeEnabled] = useState(false)
+  const [postTheme, setPostTheme] = useState(null)
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -81,6 +84,8 @@ export default function BlogEdit() {
           tags: post.tags || [],
         })
         setSlug(post.slug || '')
+        setThemeEnabled(Boolean(post.theme_enabled))
+        setPostTheme(post.theme || null)
       })
       .catch(() => setError('Failed to load post.'))
       .finally(() => setLoading(false))
@@ -313,6 +318,15 @@ export default function BlogEdit() {
           </Button>
         </Box>
       </Stack>
+
+      {!isNew && id && (
+        <AppearanceSection
+          contentType="blog"
+          contentId={Number(id)}
+          initialEnabled={themeEnabled}
+          initialTheme={postTheme}
+        />
+      )}
 
       <GalleryPhotoPicker
         open={pickerOpen}

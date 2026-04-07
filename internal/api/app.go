@@ -8,6 +8,7 @@ import (
 	"fmt"
 	stdhtml "html"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -168,6 +169,9 @@ func parseStringOrArray(raw json.RawMessage) string {
 
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 
+// fontNameRE validates font names: letters, digits, spaces, and hyphens only.
+var fontNameRE = regexp.MustCompile(`^[A-Za-z0-9 \-]+$`)
+
 // clamp returns v clamped to [min, max].
 func clamp(v, min, max int) int {
 	if v < min {
@@ -177,6 +181,60 @@ func clamp(v, min, max int) int {
 		return max
 	}
 	return v
+}
+
+// validateAndClampTheme validates font names and clamps HSL/size values to safe ranges.
+func validateAndClampTheme(body models.UserTheme) (models.UserTheme, error) {
+	if body.FontBody != "" && !fontNameRE.MatchString(body.FontBody) {
+		return models.UserTheme{}, fmt.Errorf("invalid font name")
+	}
+	if body.FontDisplay != "" && !fontNameRE.MatchString(body.FontDisplay) {
+		return models.UserTheme{}, fmt.Errorf("invalid font name")
+	}
+	if body.FontUI != "" && !fontNameRE.MatchString(body.FontUI) {
+		return models.UserTheme{}, fmt.Errorf("invalid font name")
+	}
+	theme := models.DefaultTheme()
+	theme.AccentH = clamp(body.AccentH, 0, 360)
+	theme.AccentS = clamp(body.AccentS, 0, 100)
+	theme.AccentL = clamp(body.AccentL, 0, 100)
+	theme.BgH = clamp(body.BgH, 0, 360)
+	theme.BgS = clamp(body.BgS, 0, 100)
+	theme.BgL = clamp(body.BgL, 0, 100)
+	theme.DarkAccentH = clamp(body.DarkAccentH, 0, 360)
+	theme.DarkAccentS = clamp(body.DarkAccentS, 0, 100)
+	theme.DarkAccentL = clamp(body.DarkAccentL, 0, 100)
+	theme.DarkBgH = clamp(body.DarkBgH, 0, 360)
+	theme.DarkBgS = clamp(body.DarkBgS, 0, 100)
+	theme.DarkBgL = clamp(body.DarkBgL, 0, 100)
+	theme.TextH = clamp(body.TextH, 0, 360)
+	theme.TextS = clamp(body.TextS, 0, 100)
+	theme.TextL = clamp(body.TextL, 0, 100)
+	theme.HeadingH = clamp(body.HeadingH, 0, 360)
+	theme.HeadingS = clamp(body.HeadingS, 0, 100)
+	theme.HeadingL = clamp(body.HeadingL, 0, 100)
+	theme.DarkTextH = clamp(body.DarkTextH, 0, 360)
+	theme.DarkTextS = clamp(body.DarkTextS, 0, 100)
+	theme.DarkTextL = clamp(body.DarkTextL, 0, 100)
+	theme.DarkHeadingH = clamp(body.DarkHeadingH, 0, 360)
+	theme.DarkHeadingS = clamp(body.DarkHeadingS, 0, 100)
+	theme.DarkHeadingL = clamp(body.DarkHeadingL, 0, 100)
+	theme.FontSize = clamp(body.FontSize, 12, 24)
+	theme.NavFontSize = clamp(body.NavFontSize, 10, 20)
+	if body.FontBody != "" {
+		theme.FontBody = body.FontBody
+	}
+	if body.FontDisplay != "" {
+		theme.FontDisplay = body.FontDisplay
+	}
+	if body.FontUI != "" {
+		theme.FontUI = body.FontUI
+	}
+	theme.DefaultMode = "light"
+	if body.DefaultMode == "dark" {
+		theme.DefaultMode = "dark"
+	}
+	return theme, nil
 }
 
 // ── User JSON shape ───────────────────────────────────────────────────────────

@@ -29,6 +29,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import client from '../../api/client.js'
+import AppearanceSection from '../../components/AppearanceSection.jsx'
 
 // ── Sortable item used for both ingredients and method steps ───────────────────
 
@@ -490,6 +491,8 @@ export default function RecipeEdit() {
   const [photoError, setPhotoError] = useState(null)
   const photoInputRef = useRef(null)
   const [galleryPickerOpen, setGalleryPickerOpen] = useState(false)
+  const [themeEnabled, setThemeEnabled] = useState(false)
+  const [recipeTheme, setRecipeTheme] = useState(null)
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -512,6 +515,8 @@ export default function RecipeEdit() {
         })
         setPublished(Boolean(r.published))
         setSlug(r.slug || '')
+        setThemeEnabled(Boolean(r.theme_enabled))
+        setRecipeTheme(r.theme || null)
 
         // Prefer structured groups; fall back to flat arrays from legacy data.
         if (r.ingredients_groups && r.ingredients_groups.length > 0) {
@@ -971,6 +976,15 @@ export default function RecipeEdit() {
           </Button>
         </Box>
       </Stack>
+
+      {!isNew && id && (
+        <AppearanceSection
+          contentType="recipes"
+          contentId={Number(id)}
+          initialEnabled={themeEnabled}
+          initialTheme={recipeTheme}
+        />
+      )}
 
       <GalleryPhotoPicker
         open={galleryPickerOpen}

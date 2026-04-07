@@ -69,6 +69,16 @@ func (a *App) GalleryAlbum(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Sub-albums without a custom theme inherit the parent album's theme.
+	if album.ThemeEnabled {
+		for _, s := range subAlbums {
+			if !s.ThemeEnabled {
+				s.ThemeEnabled = true
+				s.Theme = album.Theme
+			}
+		}
+	}
+
 	resp := map[string]any{
 		"album":      toAlbumJSON(album),
 		"photos":     toPhotoList(photos),

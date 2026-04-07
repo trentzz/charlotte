@@ -19,6 +19,9 @@ type Project struct {
 	Body         string
 	DisplayOrder int
 	Published    bool
+	ThemeJSON    string
+	ThemeEnabled bool
+	Theme        UserTheme
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 
@@ -28,22 +31,26 @@ type Project struct {
 
 func scanProject(row interface{ Scan(...any) error }) (*Project, error) {
 	var p Project
-	var published int
+	var published, themeEnabled int
 	var createdAt, updatedAt int64
+	var themeJSON string
 	err := row.Scan(
 		&p.ID, &p.UserID, &p.Title, &p.Slug, &p.Description, &p.URL,
 		&p.ImagePath, &p.Body, &p.DisplayOrder, &published, &createdAt, &updatedAt,
+		&themeJSON, &themeEnabled,
 	)
 	if err != nil {
 		return nil, err
 	}
 	p.Published = published == 1
+	p.ThemeEnabled = themeEnabled == 1
+	p.Theme = UnmarshalTheme(themeJSON)
 	p.CreatedAt = time.Unix(createdAt, 0)
 	p.UpdatedAt = time.Unix(updatedAt, 0)
 	return &p, nil
 }
 
-const projectSelect = `SELECT id, user_id, title, slug, description, url, image_path, body, display_order, published, created_at, updated_at FROM projects`
+const projectSelect = `SELECT id, user_id, title, slug, description, url, image_path, body, display_order, published, created_at, updated_at, theme_json, theme_enabled FROM projects`
 
 // CreateProject inserts a new project and returns its ID.
 func CreateProject(db *sql.DB, p *Project) (int64, error) {
@@ -156,7 +163,7 @@ func SearchProjectsByUser(db *sql.DB, userID int64, q string) ([]*Project, error
 
 // ListLinkedPosts returns the blog posts linked to a project, ordered by creation date.
 func ListLinkedPosts(db *sql.DB, projectID int64) ([]*Post, error) {
-	const q = `SELECT id, user_id, title, slug, body, published, created_at, updated_at
+	const q = `SELECT id, user_id, title, slug, body, published, created_at, updated_at, theme_json, theme_enabled
 	           FROM blog_posts
 	           WHERE id IN (SELECT post_id FROM project_post_links WHERE project_id = ?)
 	           ORDER BY created_at DESC`

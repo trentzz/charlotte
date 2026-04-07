@@ -180,6 +180,7 @@ func main() {
 	mux.Handle("GET /api/v1/dashboard/blog/{id}", authed(http.HandlerFunc(app.DashBlogGet)))
 	mux.Handle("PUT /api/v1/dashboard/blog/{id}", authed(csrf(http.HandlerFunc(app.DashBlogUpdate))))
 	mux.Handle("PATCH /api/v1/dashboard/blog/{id}/toggle", authed(csrf(http.HandlerFunc(app.DashBlogToggle))))
+	mux.Handle("PATCH /api/v1/dashboard/blog/{id}/theme", authed(csrf(http.HandlerFunc(app.DashBlogTheme))))
 	mux.Handle("DELETE /api/v1/dashboard/blog/{id}", authed(csrf(http.HandlerFunc(app.DashBlogDelete))))
 
 	// Dashboard — about.
@@ -195,6 +196,7 @@ func main() {
 	mux.Handle("PATCH /api/v1/dashboard/gallery/albums/{id}/toggle", authed(csrf(http.HandlerFunc(app.DashAlbumToggle))))
 	mux.Handle("PATCH /api/v1/dashboard/gallery/albums/{id}/default", authed(csrf(http.HandlerFunc(app.DashAlbumSetDefault))))
 	mux.Handle("PATCH /api/v1/dashboard/gallery/albums/{id}/default-child", authed(csrf(http.HandlerFunc(app.DashAlbumSetDefaultChild))))
+	mux.Handle("PATCH /api/v1/dashboard/gallery/albums/{id}/theme", authed(csrf(http.HandlerFunc(app.DashAlbumTheme))))
 	mux.Handle("DELETE /api/v1/dashboard/gallery/albums/{id}", authed(csrf(http.HandlerFunc(app.DashAlbumDelete))))
 	mux.Handle("PUT /api/v1/dashboard/gallery/albums/{id}/cover", authed(csrf(http.HandlerFunc(app.DashAlbumSetCover))))
 	mux.Handle("POST /api/v1/dashboard/gallery/albums/{id}/photos", authed(csrf(http.HandlerFunc(app.DashAlbumAddPhoto))))
@@ -209,6 +211,7 @@ func main() {
 	mux.Handle("GET /api/v1/dashboard/recipes/{id}", authed(http.HandlerFunc(app.DashRecipeGet)))
 	mux.Handle("PUT /api/v1/dashboard/recipes/{id}", authed(csrf(http.HandlerFunc(app.DashRecipeUpdate))))
 	mux.Handle("PATCH /api/v1/dashboard/recipes/{id}/toggle", authed(csrf(http.HandlerFunc(app.DashRecipeToggle))))
+	mux.Handle("PATCH /api/v1/dashboard/recipes/{id}/theme", authed(csrf(http.HandlerFunc(app.DashRecipeTheme))))
 	mux.Handle("DELETE /api/v1/dashboard/recipes/{id}", authed(csrf(http.HandlerFunc(app.DashRecipeDelete))))
 	mux.Handle("POST /api/v1/dashboard/recipes/{id}/attempts", authed(csrf(http.HandlerFunc(app.DashAttemptAdd))))
 	mux.Handle("DELETE /api/v1/dashboard/recipes/{id}/attempts/{aid}", authed(csrf(http.HandlerFunc(app.DashAttemptDelete))))
@@ -221,6 +224,7 @@ func main() {
 	mux.Handle("GET /api/v1/dashboard/projects/{id}", authed(http.HandlerFunc(app.DashProjectGet)))
 	mux.Handle("PUT /api/v1/dashboard/projects/{id}", authed(csrf(http.HandlerFunc(app.DashProjectUpdate))))
 	mux.Handle("PATCH /api/v1/dashboard/projects/{id}/toggle", authed(csrf(http.HandlerFunc(app.DashProjectToggle))))
+	mux.Handle("PATCH /api/v1/dashboard/projects/{id}/theme", authed(csrf(http.HandlerFunc(app.DashProjectTheme))))
 	mux.Handle("DELETE /api/v1/dashboard/projects/{id}", authed(csrf(http.HandlerFunc(app.DashProjectDelete))))
 
 	// Dashboard — custom pages.
@@ -231,6 +235,7 @@ func main() {
 	mux.Handle("GET /api/v1/dashboard/custom-pages/{id}", authed(http.HandlerFunc(app.DashCustomPageGet)))
 	mux.Handle("PUT /api/v1/dashboard/custom-pages/{id}", authed(csrf(http.HandlerFunc(app.DashCustomPageUpdate))))
 	mux.Handle("PATCH /api/v1/dashboard/custom-pages/{id}/toggle", authed(csrf(http.HandlerFunc(app.DashCustomPageToggle))))
+	mux.Handle("PATCH /api/v1/dashboard/custom-pages/{id}/theme", authed(csrf(http.HandlerFunc(app.DashCustomPageTheme))))
 	mux.Handle("DELETE /api/v1/dashboard/custom-pages/{id}", authed(csrf(http.HandlerFunc(app.DashCustomPageDelete))))
 	mux.Handle("POST /api/v1/dashboard/custom-pages/{id}/entries", authed(csrf(http.HandlerFunc(app.DashEntryCreate))))
 	mux.Handle("PUT /api/v1/dashboard/custom-pages/{id}/entries/{eid}", authed(csrf(http.HandlerFunc(app.DashEntryUpdate))))

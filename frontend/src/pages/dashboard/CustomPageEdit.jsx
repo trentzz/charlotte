@@ -16,6 +16,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import PushPinIcon from '@mui/icons-material/PushPin'
 import client from '../../api/client.js'
+import AppearanceSection from '../../components/AppearanceSection.jsx'
 
 // ─── FAQ editor ─────────────────────────────────────────────────────────────
 
@@ -608,6 +609,8 @@ export default function CustomPageEdit() {
   const [page, setPage] = useState(null)
   const [entries, setEntries] = useState([])
   const [kindDef, setKindDef] = useState(null)
+  const [themeEnabled, setThemeEnabled] = useState(false)
+  const [pageTheme, setPageTheme] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -626,6 +629,8 @@ export default function CustomPageEdit() {
         setPage(p)
         setEntries(res.data.entries || [])
         setKindDef(res.data.kind_def || null)
+        setThemeEnabled(Boolean(p.theme_enabled))
+        setPageTheme(p.theme || null)
         setTitle(p.title || '')
         setDescription(p.description || '')
         setBody(p.body || '')
@@ -803,6 +808,13 @@ export default function CustomPageEdit() {
           </Box>
         )}
       </Stack>
+
+      <AppearanceSection
+        contentType="custom-pages"
+        contentId={Number(id)}
+        initialEnabled={themeEnabled}
+        initialTheme={pageTheme}
+      />
     </Box>
   )
 }

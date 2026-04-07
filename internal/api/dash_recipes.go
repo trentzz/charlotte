@@ -306,6 +306,34 @@ func (a *App) DashRecipePhotoDelete(w http.ResponseWriter, r *http.Request) {
 	a.respondJSON(w, http.StatusOK, map[string]string{"message": "photo deleted"})
 }
 
+// DashRecipeTheme handles PATCH /api/v1/dashboard/recipes/{id}/theme.
+func (a *App) DashRecipeTheme(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	recipe, ok := a.getOwnedRecipe(w, r, user)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		Enabled bool             `json:"enabled"`
+		Theme   models.UserTheme `json:"theme"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	theme, err := validateAndClampTheme(body.Theme)
+	if err != nil {
+		a.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := models.UpdateContentTheme(a.DB, "recipes", recipe.ID, theme, body.Enabled); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]any{"enabled": body.Enabled, "theme": theme})
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func (a *App) getOwnedRecipe(w http.ResponseWriter, r *http.Request, user *models.User) (*models.Recipe, bool) {

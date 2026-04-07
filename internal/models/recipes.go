@@ -76,6 +76,9 @@ type Recipe struct {
 	MethodGroups      []MethodGroup
 	Variations        []Variation
 	Published         bool
+	ThemeJSON         string
+	ThemeEnabled      bool
+	Theme             UserTheme
 	Attempts          []*Attempt
 	Photos            []*RecipePhoto
 	CreatedAt         time.Time
@@ -94,18 +97,20 @@ type Attempt struct {
 
 func scanRecipe(row interface{ Scan(...any) error }) (*Recipe, error) {
 	var r Recipe
-	var published int
+	var published, themeEnabled int
 	var createdAt, updatedAt int64
-	var ingredientsJSON, methodJSON, variationsJSON string
+	var ingredientsJSON, methodJSON, variationsJSON, themeJSON string
 	err := row.Scan(
 		&r.ID, &r.UserID, &r.Title, &r.Slug, &r.Description,
 		&r.Ingredients, &r.Steps, &published, &createdAt, &updatedAt,
-		&ingredientsJSON, &methodJSON, &variationsJSON,
+		&ingredientsJSON, &methodJSON, &variationsJSON, &themeJSON, &themeEnabled,
 	)
 	if err != nil {
 		return nil, err
 	}
 	r.Published = published == 1
+	r.ThemeEnabled = themeEnabled == 1
+	r.Theme = UnmarshalTheme(themeJSON)
 	r.CreatedAt = time.Unix(createdAt, 0)
 	r.UpdatedAt = time.Unix(updatedAt, 0)
 
@@ -124,7 +129,7 @@ func scanRecipe(row interface{ Scan(...any) error }) (*Recipe, error) {
 
 const recipeSelect = `SELECT id, user_id, title, slug, description,
 	ingredients, steps, published, created_at, updated_at,
-	ingredients_json, method_json, variations_json FROM recipes`
+	ingredients_json, method_json, variations_json, theme_json, theme_enabled FROM recipes`
 
 // marshalRecipeJSON serialises the structured fields for DB storage.
 func marshalRecipeJSON(r *Recipe) (ingJSON, methJSON, varJSON string, err error) {
@@ -253,7 +258,7 @@ func SearchRecipesByUser(db *sql.DB, userID int64, q string) ([]*Recipe, error) 
 	rows, err := db.Query(`
 		SELECT id, user_id, title, slug, description,
 		       ingredients, steps, published, created_at, updated_at,
-		       ingredients_json, method_json, variations_json
+		       ingredients_json, method_json, variations_json, theme_json, theme_enabled
 		FROM recipes
 		WHERE user_id = ? AND published = 1 AND (title LIKE ? OR description LIKE ?)
 		ORDER BY updated_at DESC LIMIT 10`,

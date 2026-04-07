@@ -9,35 +9,41 @@ import (
 
 // Post is a single blog entry.
 type Post struct {
-	ID        int64
-	UserID    int64
-	Title     string
-	Slug      string
-	Body      string
-	Published bool
-	Tags      []string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID           int64
+	UserID       int64
+	Title        string
+	Slug         string
+	Body         string
+	Published    bool
+	Tags         []string
+	ThemeJSON    string
+	ThemeEnabled bool
+	Theme        UserTheme
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 func scanPost(row interface{ Scan(...any) error }) (*Post, error) {
 	var p Post
-	var published int
+	var published, themeEnabled int
 	var createdAt, updatedAt int64
+	var themeJSON string
 	err := row.Scan(
 		&p.ID, &p.UserID, &p.Title, &p.Slug, &p.Body,
-		&published, &createdAt, &updatedAt,
+		&published, &createdAt, &updatedAt, &themeJSON, &themeEnabled,
 	)
 	if err != nil {
 		return nil, err
 	}
 	p.Published = published == 1
+	p.ThemeEnabled = themeEnabled == 1
+	p.Theme = UnmarshalTheme(themeJSON)
 	p.CreatedAt = time.Unix(createdAt, 0)
 	p.UpdatedAt = time.Unix(updatedAt, 0)
 	return &p, nil
 }
 
-const postSelect = `SELECT id, user_id, title, slug, body, published, created_at, updated_at FROM blog_posts`
+const postSelect = `SELECT id, user_id, title, slug, body, published, created_at, updated_at, theme_json, theme_enabled FROM blog_posts`
 
 // CreatePost inserts a new blog post and sets p.ID.
 func CreatePost(db *sql.DB, p *Post) (int64, error) {

@@ -4,14 +4,18 @@ import {
   Container, Typography, Box, Chip, CircularProgress, Alert,
   Divider, Breadcrumbs, Link, IconButton, Tooltip,
 } from '@mui/material'
+import { ThemeProvider } from '@mui/material/styles'
 import EditIcon from '@mui/icons-material/Edit'
 import client from '../../api/client.js'
 import TableOfContents from '../../components/TableOfContents.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useThemeMode } from '../../context/ThemeModeContext.jsx'
+import buildProfileTheme from '../../theme/buildProfileTheme.js'
 
 export default function BlogPost() {
   const { username, slug } = useParams()
   const { user } = useAuth()
+  const { mode } = useThemeMode()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -39,7 +43,7 @@ export default function BlogPost() {
 
   const post = data?.post
 
-  return (
+  const content = (
     <Container maxWidth="lg" sx={{ py: 6 }}>
       <Box sx={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
         {/* Main content */}
@@ -124,4 +128,16 @@ export default function BlogPost() {
       </Box>
     </Container>
   )
+
+  if (post?.theme_enabled && post?.theme) {
+    return (
+      <ThemeProvider theme={buildProfileTheme(post.theme, mode)}>
+        <Box sx={{ bgcolor: 'background.default' }}>
+          {content}
+        </Box>
+      </ThemeProvider>
+    )
+  }
+
+  return content
 }

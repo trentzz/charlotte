@@ -22,6 +22,9 @@ type Album struct {
 	FirstPhoto     *Photo // first photo in the album, used as fallback thumbnail
 	PhotoCount     int
 	SubAlbums      []*Album
+	ThemeJSON      string
+	ThemeEnabled   bool
+	Theme          UserTheme
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -74,7 +77,7 @@ func CreateAlbum(db *sql.DB, a *Album) (int64, error) {
 // GetAlbumBySlug returns an album for a user by slug, including sub-albums.
 func GetAlbumBySlug(db *sql.DB, userID int64, slug string) (*Album, error) {
 	a, err := scanAlbum(db.QueryRow(
-		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id, theme_json, theme_enabled
 		 FROM gallery_albums WHERE user_id = ? AND slug = ?`, userID, slug,
 	))
 	if err != nil {
@@ -87,7 +90,7 @@ func GetAlbumBySlug(db *sql.DB, userID int64, slug string) (*Album, error) {
 // GetAlbumByID returns an album by its primary key, including sub-albums.
 func GetAlbumByID(db *sql.DB, id int64) (*Album, error) {
 	a, err := scanAlbum(db.QueryRow(
-		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id, theme_json, theme_enabled
 		 FROM gallery_albums WHERE id = ?`, id,
 	))
 	if err != nil {
@@ -99,14 +102,16 @@ func GetAlbumByID(db *sql.DB, id int64) (*Album, error) {
 
 func scanAlbum(row interface{ Scan(...any) error }) (*Album, error) {
 	var a Album
-	var published, isDefault int
+	var published, isDefault, themeEnabled int
 	var parentID sql.NullInt64
 	var coverPhotoID sql.NullInt64
 	var defaultChildID sql.NullInt64
 	var createdAt, updatedAt int64
+	var themeJSON string
 	err := row.Scan(
 		&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
 		&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt, &defaultChildID,
+		&themeJSON, &themeEnabled,
 	)
 	if err != nil {
 		return nil, err
@@ -119,6 +124,8 @@ func scanAlbum(row interface{ Scan(...any) error }) (*Album, error) {
 	}
 	a.Published = published == 1
 	a.IsDefault = isDefault == 1
+	a.ThemeEnabled = themeEnabled == 1
+	a.Theme = UnmarshalTheme(themeJSON)
 	_ = coverPhotoID // cover photo loaded separately when needed
 	a.CreatedAt = time.Unix(createdAt, 0)
 	a.UpdatedAt = time.Unix(updatedAt, 0)
@@ -139,7 +146,8 @@ func SetAlbumPublished(db *sql.DB, albumID int64, published bool) error {
 func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWhere string) ([]*Album, error) {
 	q := `SELECT ga.id, ga.user_id, ga.parent_id, ga.title, ga.slug, ga.description,
 		        ga.published, ga.is_default, ga.cover_photo, ga.created_at, ga.updated_at,
-		        COUNT(ap.photo_id) as photo_count, ga.default_child_id
+		        COUNT(ap.photo_id) as photo_count, ga.default_child_id,
+		        ga.theme_json, ga.theme_enabled
 		 FROM gallery_albums ga
 		 LEFT JOIN album_photos ap ON ap.album_id = ga.id
 		 WHERE ga.user_id = ?`
@@ -165,14 +173,16 @@ func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWh
 	var covers []coverEntry
 	for rows.Next() {
 		var a Album
-		var published, isDefault int
+		var published, isDefault, themeEnabled int
 		var parentID sql.NullInt64
 		var coverPhotoID sql.NullInt64
 		var defaultChildID sql.NullInt64
 		var createdAt, updatedAt int64
+		var themeJSON string
 		if err := rows.Scan(
 			&a.ID, &a.UserID, &parentID, &a.Title, &a.Slug, &a.Description,
 			&published, &isDefault, &coverPhotoID, &createdAt, &updatedAt, &a.PhotoCount, &defaultChildID,
+			&themeJSON, &themeEnabled,
 		); err != nil {
 			rows.Close()
 			return nil, err
@@ -185,6 +195,8 @@ func listAlbumsByUserWhere(db *sql.DB, userID int64, publishedOnly bool, extraWh
 		}
 		a.Published = published == 1
 		a.IsDefault = isDefault == 1
+		a.ThemeEnabled = themeEnabled == 1
+		a.Theme = UnmarshalTheme(themeJSON)
 		a.CreatedAt = time.Unix(createdAt, 0)
 		a.UpdatedAt = time.Unix(updatedAt, 0)
 		if coverPhotoID.Valid {
@@ -247,7 +259,7 @@ func SearchAlbumsByUser(db *sql.DB, userID int64, q string) ([]*Album, error) {
 	like := "%" + q + "%"
 	rows, err := db.Query(`
 		SELECT id, user_id, parent_id, title, slug, description, published, is_default,
-		       cover_photo, created_at, updated_at, default_child_id
+		       cover_photo, created_at, updated_at, default_child_id, theme_json, theme_enabled
 		FROM gallery_albums
 		WHERE user_id = ? AND published = 1 AND parent_id IS NULL
 		  AND (title LIKE ? OR description LIKE ?)
@@ -306,7 +318,7 @@ func SetAlbumCoverIfNone(db *sql.DB, albumID, photoID int64) error {
 // getDefaultAlbumRow scans a single row into an Album using the standard select columns.
 func getDefaultAlbumRow(db *sql.DB, userID int64) (*Album, error) {
 	return scanAlbum(db.QueryRow(
-		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id, theme_json, theme_enabled
 		 FROM gallery_albums WHERE user_id = ? AND is_default = 1 LIMIT 1`, userID,
 	))
 }
@@ -417,7 +429,7 @@ func ListAllPhotosByAlbum(db *sql.DB, albumID int64) ([]*Photo, error) {
 // ListSubAlbums returns direct children of a parent album.
 func ListSubAlbums(db *sql.DB, parentID int64) ([]*Album, error) {
 	rows, err := db.Query(
-		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id
+		`SELECT id, user_id, parent_id, title, slug, description, published, is_default, cover_photo, created_at, updated_at, default_child_id, theme_json, theme_enabled
 		 FROM gallery_albums WHERE parent_id = ? ORDER BY created_at ASC`, parentID,
 	)
 	if err != nil {

@@ -5,10 +5,13 @@ import {
   Link, List, ListItem, ListItemText, Chip, Paper,
   ImageList, ImageListItem, ImageListItemBar, IconButton, Button, Tooltip,
 } from '@mui/material'
+import { ThemeProvider } from '@mui/material/styles'
 import EditIcon from '@mui/icons-material/Edit'
 import TimerIcon from '@mui/icons-material/Timer'
 import client from '../../api/client.js'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useThemeMode } from '../../context/ThemeModeContext.jsx'
+import buildProfileTheme from '../../theme/buildProfileTheme.js'
 
 // ── Timer logic ────────────────────────────────────────────────────────────────
 
@@ -269,6 +272,7 @@ export default function RecipePost() {
   const { timers, startTimer, resetTimer, addTime } = useTimers()
 
   const isOwner = user?.username?.toLowerCase() === username?.toLowerCase()
+  const { mode } = useThemeMode()
 
   useEffect(() => {
     client.get(`/u/${username}/recipes/${slug}`)
@@ -302,7 +306,7 @@ export default function RecipePost() {
     (recipe?.method_groups && recipe.method_groups.some((g) => g.steps?.length > 0)) ||
     (Array.isArray(recipe?.steps) && recipe.steps.length > 0)
 
-  return (
+  const content = (
     <>
       <TimerBar timers={timers} onReset={resetTimer} onAddTime={addTime} />
 
@@ -458,4 +462,16 @@ export default function RecipePost() {
       </Container>
     </>
   )
+
+  if (recipe?.theme_enabled && recipe?.theme) {
+    return (
+      <ThemeProvider theme={buildProfileTheme(recipe.theme, mode)}>
+        <Box sx={{ bgcolor: 'background.default' }}>
+          {content}
+        </Box>
+      </ThemeProvider>
+    )
+  }
+
+  return content
 }

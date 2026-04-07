@@ -335,39 +335,77 @@ func (a *App) DashEntryDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// DashCustomPageTheme handles PATCH /api/v1/dashboard/custom-pages/{id}/theme.
+func (a *App) DashCustomPageTheme(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		a.respondError(w, http.StatusNotFound, "not found")
+		return
+	}
+	p, err := models.GetCustomPageByID(a.DB, id)
+	if err != nil || p.UserID != user.ID {
+		a.respondError(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	var body struct {
+		Enabled bool             `json:"enabled"`
+		Theme   models.UserTheme `json:"theme"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	theme, err := validateAndClampTheme(body.Theme)
+	if err != nil {
+		a.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := models.UpdateContentTheme(a.DB, "custom_pages", p.ID, theme, body.Enabled); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]any{"enabled": body.Enabled, "theme": theme})
+}
+
 // ── JSON helpers ──────────────────────────────────────────────────────────────
 
 type customPageJSON struct {
-	ID          int64  `json:"id"`
-	Kind        string `json:"kind"`
-	Format      string `json:"format"`
-	Slug        string `json:"slug"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Body        string `json:"body"`
-	DataJSON    string `json:"data_json"`
-	Published   bool   `json:"published"`
-	NavPinned   bool   `json:"nav_pinned"`
-	SortOrder   int    `json:"sort_order"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID           int64            `json:"id"`
+	Kind         string           `json:"kind"`
+	Format       string           `json:"format"`
+	Slug         string           `json:"slug"`
+	Title        string           `json:"title"`
+	Description  string           `json:"description"`
+	Body         string           `json:"body"`
+	DataJSON     string           `json:"data_json"`
+	Published    bool             `json:"published"`
+	NavPinned    bool             `json:"nav_pinned"`
+	SortOrder    int              `json:"sort_order"`
+	ThemeEnabled bool             `json:"theme_enabled"`
+	Theme        models.UserTheme `json:"theme"`
+	CreatedAt    string           `json:"created_at"`
+	UpdatedAt    string           `json:"updated_at"`
 }
 
 func toCustomPageJSON(p *models.CustomPage) customPageJSON {
 	return customPageJSON{
-		ID:          p.ID,
-		Kind:        p.Kind,
-		Format:      p.Format,
-		Slug:        p.Slug,
-		Title:       p.Title,
-		Description: p.Description,
-		Body:        p.Body,
-		DataJSON:    p.DataJSON,
-		Published:   p.Published,
-		NavPinned:   p.NavPinned,
-		SortOrder:   p.SortOrder,
-		CreatedAt:   p.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:   p.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		ID:           p.ID,
+		Kind:         p.Kind,
+		Format:       p.Format,
+		Slug:         p.Slug,
+		Title:        p.Title,
+		Description:  p.Description,
+		Body:         p.Body,
+		DataJSON:     p.DataJSON,
+		Published:    p.Published,
+		NavPinned:    p.NavPinned,
+		SortOrder:    p.SortOrder,
+		ThemeEnabled: p.ThemeEnabled,
+		Theme:        p.Theme,
+		CreatedAt:    p.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:    p.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
 }
 

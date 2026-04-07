@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/smtp"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -17,9 +16,6 @@ import (
 	"github.com/trentzz/charlotte/internal/models"
 	"github.com/trentzz/charlotte/internal/storage"
 )
-
-// fontNameRE validates font names: letters, digits, spaces, and hyphens only.
-var fontNameRE = regexp.MustCompile(`^[A-Za-z0-9 \-]+$`)
 
 // DashProfile handles GET /api/v1/dashboard/profile — returns full current user.
 func (a *App) DashProfile(w http.ResponseWriter, r *http.Request) {
@@ -170,62 +166,10 @@ func (a *App) DashAppearanceSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate font names before accepting any other values.
-	if body.FontBody != "" && !fontNameRE.MatchString(body.FontBody) {
-		a.respondError(w, http.StatusBadRequest, "invalid font name")
+	theme, err := validateAndClampTheme(body)
+	if err != nil {
+		a.respondError(w, http.StatusBadRequest, err.Error())
 		return
-	}
-	if body.FontDisplay != "" && !fontNameRE.MatchString(body.FontDisplay) {
-		a.respondError(w, http.StatusBadRequest, "invalid font name")
-		return
-	}
-	if body.FontUI != "" && !fontNameRE.MatchString(body.FontUI) {
-		a.respondError(w, http.StatusBadRequest, "invalid font name")
-		return
-	}
-
-	// Validate and clamp values.
-	theme := models.DefaultTheme()
-	theme.AccentH = clamp(body.AccentH, 0, 360)
-	theme.AccentS = clamp(body.AccentS, 0, 100)
-	theme.AccentL = clamp(body.AccentL, 0, 100)
-	theme.BgH = clamp(body.BgH, 0, 360)
-	theme.BgS = clamp(body.BgS, 0, 100)
-	theme.BgL = clamp(body.BgL, 0, 100)
-	theme.DarkAccentH = clamp(body.DarkAccentH, 0, 360)
-	theme.DarkAccentS = clamp(body.DarkAccentS, 0, 100)
-	theme.DarkAccentL = clamp(body.DarkAccentL, 0, 100)
-	theme.DarkBgH = clamp(body.DarkBgH, 0, 360)
-	theme.DarkBgS = clamp(body.DarkBgS, 0, 100)
-	theme.DarkBgL = clamp(body.DarkBgL, 0, 100)
-	theme.TextH = clamp(body.TextH, 0, 360)
-	theme.TextS = clamp(body.TextS, 0, 100)
-	theme.TextL = clamp(body.TextL, 0, 100)
-	theme.HeadingH = clamp(body.HeadingH, 0, 360)
-	theme.HeadingS = clamp(body.HeadingS, 0, 100)
-	theme.HeadingL = clamp(body.HeadingL, 0, 100)
-	theme.DarkTextH = clamp(body.DarkTextH, 0, 360)
-	theme.DarkTextS = clamp(body.DarkTextS, 0, 100)
-	theme.DarkTextL = clamp(body.DarkTextL, 0, 100)
-	theme.DarkHeadingH = clamp(body.DarkHeadingH, 0, 360)
-	theme.DarkHeadingS = clamp(body.DarkHeadingS, 0, 100)
-	theme.DarkHeadingL = clamp(body.DarkHeadingL, 0, 100)
-	theme.FontSize = clamp(body.FontSize, 12, 24)
-	theme.NavFontSize = clamp(body.NavFontSize, 10, 20)
-	if body.FontBody != "" {
-		theme.FontBody = body.FontBody
-	}
-	if body.FontDisplay != "" {
-		theme.FontDisplay = body.FontDisplay
-	}
-	if body.FontUI != "" {
-		theme.FontUI = body.FontUI
-	}
-
-	if body.DefaultMode == "dark" {
-		theme.DefaultMode = "dark"
-	} else {
-		theme.DefaultMode = "light"
 	}
 
 	if err := models.UpdateUserTheme(a.DB, user.ID, theme); err != nil {

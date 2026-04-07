@@ -4,17 +4,20 @@ import {
   Container, Typography, Box, CircularProgress, Alert,
   Divider, Link, Button, Stack, Tooltip, IconButton,
 } from '@mui/material'
-import { useTheme } from '@mui/material/styles'
+import { useTheme, ThemeProvider } from '@mui/material/styles'
 import EditIcon from '@mui/icons-material/Edit'
 import client from '../../api/client.js'
 import PhotoGrid from '../../components/PhotoGrid.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useThemeMode } from '../../context/ThemeModeContext.jsx'
+import buildProfileTheme from '../../theme/buildProfileTheme.js'
 
 export default function GalleryAlbum() {
   const { username, album, subalbum } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
   const theme = useTheme()
+  const { mode } = useThemeMode()
   const isOwner = user?.username?.toLowerCase() === username?.toLowerCase()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -99,7 +102,7 @@ export default function GalleryAlbum() {
     : (data?.photos || [])
   const photoCount = photos.length
 
-  return (
+  const content = (
     <Box sx={{ py: 6 }}>
       {/* Editorial header — centred, display font */}
       <Box sx={{ textAlign: 'center', mb: 4, px: 2, position: 'relative' }}>
@@ -193,4 +196,16 @@ export default function GalleryAlbum() {
       </Container>
     </Box>
   )
+
+  if (albumData?.theme_enabled && albumData?.theme) {
+    return (
+      <ThemeProvider theme={buildProfileTheme(albumData.theme, mode)}>
+        <Box sx={{ bgcolor: 'background.default' }}>
+          {content}
+        </Box>
+      </ThemeProvider>
+    )
+  }
+
+  return content
 }

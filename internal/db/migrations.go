@@ -343,6 +343,27 @@ var migrations = []string{
 
 	// 36: photo version for cache-busting
 	`ALTER TABLE photos ADD COLUMN version INTEGER NOT NULL DEFAULT 0`,
+
+	// 37: per-album custom appearance
+	`ALTER TABLE gallery_albums ADD COLUMN theme_json TEXT NOT NULL DEFAULT '{}'`,
+	// 38
+	`ALTER TABLE gallery_albums ADD COLUMN theme_enabled INTEGER NOT NULL DEFAULT 0`,
+	// 39: per-post custom appearance
+	`ALTER TABLE blog_posts ADD COLUMN theme_json TEXT NOT NULL DEFAULT '{}'`,
+	// 40
+	`ALTER TABLE blog_posts ADD COLUMN theme_enabled INTEGER NOT NULL DEFAULT 0`,
+	// 41: per-recipe custom appearance
+	`ALTER TABLE recipes ADD COLUMN theme_json TEXT NOT NULL DEFAULT '{}'`,
+	// 42
+	`ALTER TABLE recipes ADD COLUMN theme_enabled INTEGER NOT NULL DEFAULT 0`,
+	// 43: per-project custom appearance
+	`ALTER TABLE projects ADD COLUMN theme_json TEXT NOT NULL DEFAULT '{}'`,
+	// 44
+	`ALTER TABLE projects ADD COLUMN theme_enabled INTEGER NOT NULL DEFAULT 0`,
+	// 45: per-custom-page custom appearance
+	`ALTER TABLE custom_pages ADD COLUMN theme_json TEXT NOT NULL DEFAULT '{}'`,
+	// 46
+	`ALTER TABLE custom_pages ADD COLUMN theme_enabled INTEGER NOT NULL DEFAULT 0`,
 }
 
 // Migrate runs any migrations that have not yet been applied, in order.

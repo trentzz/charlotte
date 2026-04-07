@@ -38,6 +38,7 @@ import AlbumView from './pages/dashboard/AlbumView.jsx'
 import Recipes from './pages/dashboard/Recipes.jsx'
 import RecipeEdit from './pages/dashboard/RecipeEdit.jsx'
 import DashProjects from './pages/dashboard/Projects.jsx'
+import ProjectEdit from './pages/dashboard/ProjectEdit.jsx'
 import Homepage from './pages/dashboard/Homepage.jsx'
 import CustomPages from './pages/dashboard/CustomPages.jsx'
 import CustomPageEdit from './pages/dashboard/CustomPageEdit.jsx'
@@ -104,6 +105,7 @@ export default function App() {
               <Route path="/dashboard/recipes" element={<Recipes />} />
               <Route path="/dashboard/recipes/:id" element={<RecipeEdit />} />
               <Route path="/dashboard/projects" element={<DashProjects />} />
+              <Route path="/dashboard/projects/:id" element={<ProjectEdit />} />
               <Route path="/dashboard/homepage" element={<Homepage />} />
               <Route path="/dashboard/custom-pages" element={<CustomPages />} />
               <Route path="/dashboard/custom-pages/:id" element={<CustomPageEdit />} />

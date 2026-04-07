@@ -217,6 +217,21 @@ Dashboard → Navigation (`/dashboard/nav-config`) lets users customise the top 
 
 ---
 
+## Per-page custom appearance
+
+Each content item (album, blog post, recipe, project, custom page) can have its own theme that overrides the profile theme on that page only.
+
+- **Custom appearance section**: a collapsible accordion at the bottom of the dashboard editor for each content type.
+- **Enable toggle**: a switch inside the accordion enables or disables the custom theme for that item. When disabled, the item uses the profile theme.
+- **Same controls as profile appearance**: colour pickers (tabbed light/dark), font pickers (display, body, UI), and size sliders (base font size, nav label size). The "Default mode for visitors" toggle is not included — that remains profile-only.
+- **Auto-save**: saves 800 ms after any change (same as the profile appearance page).
+- **Light/Dark preview**: switching between the Light and Dark colour tabs updates the dashboard page preview mode via `setMode`, so you can see the effect immediately.
+- **Public pages**: when `theme_enabled` is true and a theme is stored, the public page for that item wraps its content in a nested `ThemeProvider` built from the stored theme. The profile-level theme is completely overridden for that page. No `CssBaseline` inside the nested provider — only a `Box` with `bgcolor: 'background.default'` to apply the background.
+- **API**: `PATCH /api/v1/dashboard/{albums|blog|recipes|projects|custom-pages}/{id}/theme` with body `{ "enabled": bool, "theme": { ...theme fields... } }`.
+- **Projects editor**: the project editor is now a standalone route at `/dashboard/projects/:id` (`ProjectEdit.jsx`). The projects list page navigates to this route when Edit is clicked. Creating a new project navigates to `/dashboard/projects/new`.
+
+---
+
 ## Appearance (per-user theme)
 
 Each user can fully customise the visual style of their public pages from Dashboard → Appearance:
@@ -430,7 +445,42 @@ The automated test suite covers all model functions and API handlers. Tests use 
 
 ---
 
+## Per-page custom appearance (Phase 1 — backend complete)
+
+Each content page (album, blog post, recipe, project, custom page) can have its own theme override. When enabled, the public page uses the page-level theme instead of the profile theme. Sub-albums without their own theme inherit from the parent album.
+
+**DB migrations (37–46):** `theme_json TEXT NOT NULL DEFAULT '{}'` and `theme_enabled INTEGER NOT NULL DEFAULT 0` added to `gallery_albums`, `blog_posts`, `recipes`, `projects`, and `custom_pages`.
+
+**Model changes:** `ThemeJSON`, `ThemeEnabled`, and `Theme` fields added to `Album`, `Post`, `Recipe`, `Project`, and `CustomPage` structs. All SELECT and scan paths updated.
+
+**Shared helper:** `models.UpdateContentTheme(db, table, id, theme, enabled)` updates any content table. `models.UnmarshalTheme(s)` parses stored JSON, falling back to the default theme for missing fields.
+
+**Validation helper:** `validateAndClampTheme` extracted to `internal/api/app.go`, called by `DashAppearanceSave` and all five new theme handlers.
+
+**PATCH theme endpoints** (all require auth + CSRF):
+
+| Method | Path | Handler |
+|--------|------|---------|
+| PATCH | `/api/v1/dashboard/gallery/albums/{id}/theme` | `DashAlbumTheme` |
+| PATCH | `/api/v1/dashboard/blog/{id}/theme` | `DashBlogTheme` |
+| PATCH | `/api/v1/dashboard/recipes/{id}/theme` | `DashRecipeTheme` |
+| PATCH | `/api/v1/dashboard/projects/{id}/theme` | `DashProjectTheme` |
+| PATCH | `/api/v1/dashboard/custom-pages/{id}/theme` | `DashCustomPageTheme` |
+
+Request body: `{"enabled": bool, "theme": UserTheme}`. Response: `{"enabled": bool, "theme": UserTheme}`.
+
+**JSON serialisation:** `theme_enabled` and `theme` fields added to `albumJSON`, `postJSON`, `recipeJSON`, `projectJSON`, and `customPageJSON`. These propagate to all existing dashboard GET and public profile endpoints automatically.
+
+**Sub-album inheritance:** in `GalleryAlbum`, sub-albums without a custom theme inherit the parent album's theme before the response is sent.
+
+**Phases 2–4 (frontend) are planned but not yet implemented.**
+
+---
+
 ## Planned / in progress
 
+- [ ] Per-page custom appearance: Phase 2 (frontend infrastructure — `AppearanceEditor` component, `setMode` in `ThemeModeContext`).
+- [ ] Per-page custom appearance: Phase 3 (dashboard editors — appearance section in album, blog, recipe, project, custom page editors).
+- [ ] Per-page custom appearance: Phase 4 (public pages — nested `ThemeProvider` when page theme is enabled).
 - [ ] Per-user colour scheme live preview on the public page (currently requires saving to see full effect).
 - [ ] Recipe attempt journal entry UI in the dashboard (API endpoints exist).

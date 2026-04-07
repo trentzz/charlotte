@@ -106,15 +106,17 @@ func (a *App) UserProfile(w http.ResponseWriter, r *http.Request) {
 // ── JSON conversion helpers ───────────────────────────────────────────────────
 
 type postJSON struct {
-	ID        int64    `json:"id"`
-	Title     string   `json:"title"`
-	Slug      string   `json:"slug"`
-	Body      string   `json:"body"`
-	BodyHTML  string   `json:"body_html"`
-	Published bool     `json:"published"`
-	Tags      []string `json:"tags"`
-	CreatedAt string   `json:"created_at"`
-	UpdatedAt string   `json:"updated_at"`
+	ID           int64            `json:"id"`
+	Title        string           `json:"title"`
+	Slug         string           `json:"slug"`
+	Body         string           `json:"body"`
+	BodyHTML     string           `json:"body_html"`
+	Published    bool             `json:"published"`
+	Tags         []string         `json:"tags"`
+	ThemeEnabled bool             `json:"theme_enabled"`
+	Theme        models.UserTheme `json:"theme"`
+	CreatedAt    string           `json:"created_at"`
+	UpdatedAt    string           `json:"updated_at"`
 }
 
 func toPostJSON(p *models.Post) postJSON {
@@ -123,15 +125,17 @@ func toPostJSON(p *models.Post) postJSON {
 		tags = []string{}
 	}
 	return postJSON{
-		ID:        p.ID,
-		Title:     p.Title,
-		Slug:      p.Slug,
-		Body:      p.Body,
-		BodyHTML:  renderContent(p.Body),
-		Published: p.Published,
-		Tags:      tags,
-		CreatedAt: p.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: p.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		ID:           p.ID,
+		Title:        p.Title,
+		Slug:         p.Slug,
+		Body:         p.Body,
+		BodyHTML:     renderContent(p.Body),
+		Published:    p.Published,
+		Tags:         tags,
+		ThemeEnabled: p.ThemeEnabled,
+		Theme:        p.Theme,
+		CreatedAt:    p.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:    p.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
 }
 
@@ -237,6 +241,8 @@ type recipeJSON struct {
 	MethodGroups      []methodGroupJSON     `json:"method_groups"`
 	Variations        []variationJSON       `json:"variations"`
 	Published         bool                 `json:"published"`
+	ThemeEnabled      bool                 `json:"theme_enabled"`
+	Theme             models.UserTheme     `json:"theme"`
 	Attempts          []attemptJSON        `json:"attempts"`
 	Photos            []recipePhotoJSON    `json:"photos"`
 	CreatedAt         string               `json:"created_at"`
@@ -310,6 +316,8 @@ func toRecipeJSON(r *models.Recipe) recipeJSON {
 		MethodGroups:      methGroups,
 		Variations:        variations,
 		Published:         r.Published,
+		ThemeEnabled:      r.ThemeEnabled,
+		Theme:             r.Theme,
 		Attempts:          attempts,
 		Photos:            photos,
 		CreatedAt:         r.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
@@ -326,19 +334,21 @@ func toRecipeList(recipes []*models.Recipe) []recipeJSON {
 }
 
 type projectJSON struct {
-	ID           int64      `json:"id"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Description  string     `json:"description"`
-	URL          string     `json:"url"`
-	ImageURL     string     `json:"image_url"`
-	Body         string     `json:"body"`
-	BodyHTML     string     `json:"body_html"`
-	LinkedPosts  []postJSON `json:"linked_posts"`
-	Published    bool       `json:"published"`
-	DisplayOrder int        `json:"display_order"`
-	CreatedAt    string     `json:"created_at"`
-	UpdatedAt    string     `json:"updated_at"`
+	ID           int64            `json:"id"`
+	Title        string           `json:"title"`
+	Slug         string           `json:"slug"`
+	Description  string           `json:"description"`
+	URL          string           `json:"url"`
+	ImageURL     string           `json:"image_url"`
+	Body         string           `json:"body"`
+	BodyHTML     string           `json:"body_html"`
+	LinkedPosts  []postJSON       `json:"linked_posts"`
+	Published    bool             `json:"published"`
+	DisplayOrder int              `json:"display_order"`
+	ThemeEnabled bool             `json:"theme_enabled"`
+	Theme        models.UserTheme `json:"theme"`
+	CreatedAt    string           `json:"created_at"`
+	UpdatedAt    string           `json:"updated_at"`
 }
 
 func toProjectJSON(p *models.Project) projectJSON {
@@ -362,6 +372,8 @@ func toProjectJSON(p *models.Project) projectJSON {
 		LinkedPosts:  linked,
 		Published:    p.Published,
 		DisplayOrder: p.DisplayOrder,
+		ThemeEnabled: p.ThemeEnabled,
+		Theme:        p.Theme,
 		CreatedAt:    p.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:    p.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
@@ -376,21 +388,23 @@ func toProjectList(projects []*models.Project) []projectJSON {
 }
 
 type albumJSON struct {
-	ID               int64       `json:"id"`
-	ParentID         *int64      `json:"parent_id,omitempty"`
-	Title            string      `json:"title"`
-	Slug             string      `json:"slug"`
-	Description      string      `json:"description"`
-	Published        bool        `json:"published"`
-	IsDefault        bool        `json:"is_default"`
-	DefaultChildID   *int64      `json:"default_child_id,omitempty"`
-	DefaultChildSlug string      `json:"default_child_slug,omitempty"`
-	CoverPhoto       *photoJSON  `json:"cover_photo"`
-	CoverURL         string      `json:"cover_url"` // explicit cover URL, or first photo URL as fallback
-	PhotoCount       int         `json:"photo_count"`
-	SubAlbums        []albumJSON `json:"sub_albums,omitempty"`
-	CreatedAt        string      `json:"created_at"`
-	UpdatedAt        string      `json:"updated_at"`
+	ID               int64            `json:"id"`
+	ParentID         *int64           `json:"parent_id,omitempty"`
+	Title            string           `json:"title"`
+	Slug             string           `json:"slug"`
+	Description      string           `json:"description"`
+	Published        bool             `json:"published"`
+	IsDefault        bool             `json:"is_default"`
+	DefaultChildID   *int64           `json:"default_child_id,omitempty"`
+	DefaultChildSlug string           `json:"default_child_slug,omitempty"`
+	CoverPhoto       *photoJSON       `json:"cover_photo"`
+	CoverURL         string           `json:"cover_url"` // explicit cover URL, or first photo URL as fallback
+	PhotoCount       int              `json:"photo_count"`
+	SubAlbums        []albumJSON      `json:"sub_albums,omitempty"`
+	ThemeEnabled     bool             `json:"theme_enabled"`
+	Theme            models.UserTheme `json:"theme"`
+	CreatedAt        string           `json:"created_at"`
+	UpdatedAt        string           `json:"updated_at"`
 }
 
 func toAlbumJSON(a *models.Album) albumJSON {
@@ -415,6 +429,8 @@ func toAlbumJSON(a *models.Album) albumJSON {
 		CoverPhoto:     cover,
 		CoverURL:       coverURL,
 		PhotoCount:     a.PhotoCount,
+		ThemeEnabled:   a.ThemeEnabled,
+		Theme:          a.Theme,
 		CreatedAt:      a.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:      a.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}

@@ -470,6 +470,34 @@ func (a *App) DashPhotoRotate(w http.ResponseWriter, r *http.Request) {
 	a.respondJSON(w, http.StatusOK, map[string]any{"ok": true, "version": newVersion})
 }
 
+// DashAlbumTheme handles PATCH /api/v1/dashboard/gallery/albums/{id}/theme.
+func (a *App) DashAlbumTheme(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
+	album, ok := a.getOwnedAlbum(w, r, user)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		Enabled bool             `json:"enabled"`
+		Theme   models.UserTheme `json:"theme"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		a.respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	theme, err := validateAndClampTheme(body.Theme)
+	if err != nil {
+		a.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := models.UpdateContentTheme(a.DB, "gallery_albums", album.ID, theme, body.Enabled); err != nil {
+		a.internalError(w, r, err)
+		return
+	}
+	a.respondJSON(w, http.StatusOK, map[string]any{"enabled": body.Enabled, "theme": theme})
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func (a *App) getOwnedAlbum(w http.ResponseWriter, r *http.Request, user *models.User) (*models.Album, bool) {
