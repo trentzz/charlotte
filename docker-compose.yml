@@ -4,7 +4,7 @@ services:
     ports:
       - "9271:9271"
     volumes:
-      - /mnt/docker-replicated-generic/charlotte:/data
+      - ./data:/data
     environment:
       PORT: "9271"
       DATA_DIR: /data
