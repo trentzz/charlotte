@@ -1,6 +1,9 @@
 # compiled binary (root only, not cmd/charlotte/)
 /charlotte
 
+# local docker-compose with host-specific paths (use docker-compose-example.yml as a base)
+docker-compose.yml
+
 # runtime data (database and uploads)
 data/
 
